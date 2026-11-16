@@ -1,0 +1,11 @@
+{
+  "name": "dsh-tradingagents",
+  "version": "0.0.1",
+  "description": "TradingAgents, natively on DeepSeek Harness — multi-agent investment committee (analyst / bull / bear / risk / PM) with evidence tags, PASS as a first-class verdict, and the auditable IC-MEMO output format. Name reserved; first release in development.",
+  "keywords": ["deepseek-harness", "dsh", "dsh-plugin", "tradingagents", "ai-hedge-fund", "multi-agent-trading", "investment-committee", "quant", "ic-memo"],
+  "repository": {"type": "git", "url": "git+https://github.com/vicfei/dsh-TradingAgents.git"},
+  "homepage": "https://github.com/vicfei/dsh-TradingAgents#readme",
+  "bugs": {"url": "https://github.com/vicfei/dsh-TradingAgents/issues"},
+  "license": "MIT",
+  "author": "vicfei"
+}
