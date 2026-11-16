@@ -1,0 +1,68 @@
+# dsh-tradingagents — TradingAgents, natively on DeepSeek Harness
+
+**A multi-agent investment committee that debates in your terminal — every claim tagged, every verdict auditable.**
+**让 TradingAgents 式的多智能体投研议院在你的 DSH 终端里开庭——每个主张带证据标签，每次裁决可审计。**
+
+[![DeepSeek Harness](https://img.shields.io/badge/DSH-plugin-4E6DD4)](https://github.com/deepseek-ai) [![License: MIT](https://img.shields.io/badge/license-MIT-3da639)](LICENSE) [![IC-MEMO](https://img.shields.io/badge/output-IC--MEMO-ff6b35)](templates/IC-MEMO.md)
+
+> Inspired by [Tauric Research's TradingAgents](https://github.com/TauricResearch/TradingAgents) and
+> [virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — restructured as a
+> native DeepSeek Harness experience. Not affiliated; independent community project.
+
+## Why this exists
+
+| | TradingAgents | ai-hedge-fund | **dsh-tradingagents** |
+|---|---|---|---|
+| Runs where | Python lab | Python lab | **Your DSH terminal/session** — model key you already have |
+| Model calls/session | dozens | 10+ | **6 (≈31s, ¥分级成本)** |
+| Output | text logs | trades table | **[IC-MEMO](templates/IC-MEMO.md)** — open, auditable memo format |
+| Evidence discipline | — | — | **every claim tagged `[A#][B#][R#][G#]`, verdict must name what moved it** |
+| Abstention | — | — | **PASS is a first-class verdict** — “证据不足，拒绝表态” |
+| Risk officer | team output | — | guardrails **only** — constrains, never decides |
+
+The differentiator is **auditability**: analyst → bull → bear (cross-exam) → bull rebuttal →
+risk guardrails → portfolio manager. The PM cannot cite anything untagged, cannot overrule
+risk triggers, and must abstain when evidence is insufficient.
+
+## Quick start (zero extra keys)
+
+```bash
+git clone https://github.com/vicfei/dsh-tradingagents && cd dsh-tradingagents
+python3 scripts/tradingagents.py --ticker DEMO     # offline synthetic smoke, 6 calls, ~30s
+```
+
+DEMO verdict from the very first smoke run (2026-11-16, temperature=0):
+
+> **PASS @ 55** — “弃权而非看多或看空… 空方的时点错配论证（[R1][R2][R4]：营收/毛利率/份额
+> 均早于降价信号 [A7]）说服我偏向谨慎；[A8] 订单金额未披露与 [A9] 估值口径不可复核
+> 是两处硬缺口；证据不足以裁决，按纪律 PASS，待 [G8] 任一重审事件落地后再议。”
+
+A committee that **abstains with reasons** is the feature.
+
+## The committee
+
+```
+analyst ──► bull ──► bear (cross-exam) ──► bull rebuttal ──► risk (guardrails only)
+                                                                     │
+                                                        portfolio manager ──► IC-MEMO
+                                                        (BUY/HOLD/SELL/PASS + confidence
+                                                         + invalidation triggers)
+```
+
+## IC-MEMO — an open format
+
+Every session emits an [IC-MEMO](templates/IC-MEMO.md): decision yaml head, tagged
+fact layer, full debate, guardrails, and a verdict that must name its influences.
+Unresolved dissent is recorded, never deleted. Spec evolution lives in `docs/`.
+
+## Status & roadmap
+
+v0 engine smoke-tested (see `memos/`). See [ROADMAP](ROADMAP.md) for the
+launch package (npm plugin + marketplace + real-data adapters: yfinance / akshare)
+and the IC-MEMO standard track.
+
+## Credits & disclaimer
+
+Structure inspired by TradingAgents (Tauric Research) and ai-hedge-fund (virattt) —
+this project is an independent native re-implementation for DeepSeek Harness, MIT.
+**Not investment advice.** Demo data is synthetic; real-data modes cite their sources.
