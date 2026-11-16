@@ -28,8 +28,16 @@ risk triggers, and must abstain when evidence is insufficient.
 
 ```bash
 git clone https://github.com/vicfei/dsh-TradingAgents && cd dsh-tradingagents
-python3 scripts/tradingagents.py --ticker DEMO     # offline synthetic smoke, 6 calls, ~30s
+python3 scripts/tradingagents.py --ticker DEMO                  # offline synthetic smoke, ~30s
+python3 scripts/fetch_card.py --ticker NVDA --committee         # real US data → full committee
+python3 scripts/fetch_card.py --ticker 600519 --committee       # real A-share data → full committee
 ```
+
+Real data runs on a three-tier ladder, CN-cloud friendly:
+**yfinance direct → Tencent gtimg (works behind the GFW: quote / PE / mcap / PB +
+K-line technicals, same engine for US & A-share) → `--via-relay` full yfinance
+through any SSH relay**. Every card item carries its source and as-of date —
+the evidence-tag discipline starts at the data layer.
 
 DEMO verdict from the very first smoke run (2026-11-16, temperature=0):
 
