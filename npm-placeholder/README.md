@@ -15,3 +15,8 @@ Engine and docs: https://github.com/vicfei/dsh-TradingAgents
 - Real-data adapters: US & A-share, zero API keys, CN-cloud friendly
 - Output: [IC-MEMO](https://github.com/vicfei/dsh-TradingAgents/blob/main/templates/IC-MEMO.md) — an open, auditable investment-committee memo format
 - Not investment advice.
+
+
+---
+
+**发布记录**：2026-11-16 手动 `npm publish`（网页认证流）成功。注意：npm 新版分阶段发布会在版本列表留下一个 `0.0.0-stage` 内部占位工件（描述 "Temporary package placeholder for staged publishing"），非抢注，`latest` 正常指向 0.0.1。
