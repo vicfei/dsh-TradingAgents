@@ -27,7 +27,7 @@ risk triggers, and must abstain when evidence is insufficient.
 ## Quick start (zero extra keys)
 
 ```bash
-git clone https://github.com/vicfei/dsh-tradingagents && cd dsh-tradingagents
+git clone https://github.com/vicfei/dsh-TradingAgents && cd dsh-tradingagents
 python3 scripts/tradingagents.py --ticker DEMO     # offline synthetic smoke, 6 calls, ~30s
 ```
 
