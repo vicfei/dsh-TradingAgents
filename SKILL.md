@@ -36,9 +36,13 @@ Output language: English by default, `--lang zh` for Chinese (env `TRADINGAGENTS
 
 ## Verdicts
 
+- Five tradeable tiers: BUY / OVERWEIGHT / HOLD / UNDERWEIGHT / SELL.
 - `PASS` is a valid, respectable outcome (evidence insufficient). Do not rerun
   the committee hoping for a different verdict — reruns require NEW data
   (invalidation triggers in the memo define what counts).
+- `REVIEW` is a different exit: the PM's output could not be parsed into a
+  decision. It is not a verdict and is never traded or recorded as PASS —
+  rerun the session.
 - Report the verdict verbatim with its named influences; archive the memo
   (`--save`), never edit an archived memo.
 

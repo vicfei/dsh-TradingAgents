@@ -73,8 +73,12 @@ issue → branch → PR.
       lessons ([T#] citations) — only the PM reads them
 - [x] `tradingagents settle` subcommand (2026-11-17): indexes memos then settles due
       entries (npm CLI; engine: `python3 scripts/ledger.py --settle`)
-- [ ] Verdict dual exit: unparseable JSON → REVIEW (not tradeable, rerun) ≠ PASS
-      (insufficient evidence); add Overweight/Underweight tiers (PASS stays first-class)
+- [x] Verdict dual exit + five tiers (2026-11-17, PR #14): BUY/OVERWEIGHT/HOLD/UNDERWEIGHT/
+      SELL + PASS (first-class) + REVIEW sentinel — `resolve_verdict()` normalizes casing,
+      rejects out-of-vocabulary or missing decisions to REVIEW (not a verdict, never
+      silently PASS/Hold); memo renders a REVIEW banner; ledger records REVIEW entries
+      but never settles or scores them; resolve_verdict unit-tested in CI; live run on
+      the six-value vocabulary verified
 - [ ] Content ammunition: first critical review post ("the committee's first track
       record") — settlement data is exclusive material
 

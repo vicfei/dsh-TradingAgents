@@ -9,7 +9,9 @@
 ticker: <symbol>
 as_of: <data date>
 committee: tradingagents/<version>
-decision: BUY | HOLD | SELL | PASS      # PASS = evidence insufficient, decline to rule
+decision: BUY | OVERWEIGHT | HOLD | UNDERWEIGHT | SELL | PASS | REVIEW
+# five tradeable tiers; PASS = evidence insufficient, decline to rule (first-class);
+# REVIEW = output unreadable — not a verdict, not tradeable, rerun required
 confidence: <0-100>
 size_hint: <position sizing hint, %>
 invalidation: [ <falsifiable re-review triggers> ]
