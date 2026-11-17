@@ -92,8 +92,11 @@ issue → branch → PR.
       assets; renderer structure unit-tested in CI. Along the way it exposed and fixed two
       English-first leaks: the engine prompt now enforces output language, and the bundled
       DEMO data card was translated (synthetic numbers unchanged)
-- [ ] `--portfolio` three-state input: held / flat / not-provided strictly distinct
-      (issue #5)
+- [x] `--portfolio` three-state input (2026-11-17, PR #19): held / flat / not-provided
+      strictly distinct — omitting the flag never renders as a flat book; non-finite
+      quantities rejected; the PM payload gets a holdings block (size_hint must relate
+      to the existing position); memo yaml records the state; three-state discipline
+      unit-tested in CI (issue #5)
 - [ ] `--date` historical as-of mode: SEC filed-as-of semantics via the sec provider —
       precondition for the backtest grid (issue #6)
 - [ ] Cost guard: llm() parses usage, memo footer reports calls/tokens, `--max-calls`

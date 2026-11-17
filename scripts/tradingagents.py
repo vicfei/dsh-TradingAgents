@@ -26,6 +26,10 @@ import argparse, datetime as dt, json, os, re, subprocess, sys, time
 RATINGS = ("BUY", "OVERWEIGHT", "HOLD", "UNDERWEIGHT", "SELL")
 VERDICTS = RATINGS + ("PASS", "REVIEW")
 
+LANG = os.environ.get("TRADINGAGENTS_LANG") or "en"
+def tt(en, zh):
+    return en if LANG == "en" else zh
+
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # npm CLI form lands memos in the caller's cwd via TRADINGAGENTS_MEMOS (repo default unchanged)
 MEMOS = os.environ.get("TRADINGAGENTS_MEMOS") or os.path.join(KIT, "memos")
@@ -176,6 +180,56 @@ def parse_json(text):
         return json.loads(re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.M).strip())
 
 
+def load_portfolio(path):
+    """The caller's book, three states strictly distinct (issue #5).
+
+    Provided with a positions list (possibly empty = flat book) vs NOT provided at
+    all (the agents know nothing about holdings) — treating "not provided" as flat
+    would invent a fact about the caller's account.
+    """
+    data = json.load(open(path, encoding="utf-8"))
+    positions = data.get("positions")
+    if not isinstance(positions, list):
+        raise SystemExit(tt("--portfolio JSON must carry a positions list "
+                            "(empty list = flat book; omit the flag entirely when holdings "
+                            "should stay unknown)",
+                            "--portfolio 的 JSON 必须含 positions 列表"
+                            "（空列表=空仓；不想让议院知道持仓就不要传该参数）"))
+    for p in positions:
+        q = p.get("quantity")
+        if not isinstance(q, (int, float)) or q != q or q in (float("inf"), float("-inf")):
+            raise SystemExit(tt(f"non-finite quantity for {p.get('ticker')!r}",
+                                f"{p.get('ticker')!r} 的 quantity 非有限数"))
+    return {"cash": data.get("cash"), "currency": data.get("currency"), "positions": positions}
+
+
+def render_portfolio(book, ticker):
+    """Holdings block for the PM and risk officer; '' when nothing was provided."""
+    if book is None:
+        return ""
+    ours, others = [], []
+    norm = lambda s: str(s).strip().upper().replace(".", "")
+    want = norm(ticker)
+    for p in book["positions"]:
+        (ours if norm(p.get("ticker", "")) == want else others).append(p)
+    L = []
+    for p in ours:
+        px = f", average price {p['average_price']:,.2f}" if p.get("average_price") is not None else ""
+        L.append(tt(f"- Current position in {ticker}: {p['quantity']:,.4g} units{px}",
+                    f"- 当前持有 {ticker}：{p['quantity']:,.4g} 单位{px}"))
+    if not ours:
+        L.append(tt(f"- No current position in {ticker}", f"- 当前未持有 {ticker}"))
+    if book.get("cash") is not None:
+        cur = f" {book['currency']}" if book.get("currency") else ""
+        L.append(tt(f"- Cash available: {book['cash']:,.2f}{cur}", f"- 可用现金：{book['cash']:,.2f}{cur}"))
+    if others:
+        L.append(tt("- Other positions: " + ", ".join(f"{p['ticker']} {p['quantity']:,.4g}" for p in others),
+                    "- 其他持仓：" + ", ".join(f"{p['ticker']} {p['quantity']:,.4g}" for p in others)))
+    return tt("Portfolio at the analysis date (size_hint must relate to the existing "
+              "position — adding vs opening are different acts):\n", 
+              "分析日持仓（size_hint 须对照现有仓位——加仓与建仓是两回事）：\n") + "\n".join(L)
+
+
 def resolve_verdict(pm_text, lang="en"):
     """Parse the PM's output into a verdict (issue #3 dual exit).
 
@@ -209,6 +263,9 @@ def main():
     ap.add_argument("--lang", choices=("en", "zh"), default=os.environ.get("TRADINGAGENTS_LANG") or "en",
                     help="output language (default en)")
     ap.add_argument("--save", action="store_true", help="archive the memo under memos/")
+    ap.add_argument("--portfolio", default=None,
+                    help="portfolio JSON ({cash?, currency?, positions:[{ticker,quantity,average_price?}]}) — "
+                         "empty positions = flat book; omitting the flag leaves holdings unknown")
     ap.add_argument("--html", action="store_true", help="also render a single-file HTML memo (issue #4)")
     args = ap.parse_args()
     LANG = args.lang
@@ -224,6 +281,8 @@ def main():
         past_context = ledger.context_block(args.ticker)
     except Exception:
         pass
+    book = load_portfolio(args.portfolio) if args.portfolio else None  # three-state, issue #5
+    holdings = render_portfolio(book, args.ticker)
     t0 = time.time()
     data = json.dumps(card, ensure_ascii=False, indent=1)
 
@@ -251,6 +310,7 @@ def main():
              f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
              + (t("pm_guests") + guest_digest if guest_digest else "")
              + (t("track_record") + past_context if past_context else "")
+             + ("\n\n" + holdings + "\n" if holdings else "")
              + t("guardrails") + risk,
              json_out=True)
 
@@ -281,6 +341,7 @@ decision: {verdict.get('decision')}
 confidence: {verdict.get('confidence')}
 size_hint: {verdict.get('size_hint')}
 invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
+portfolio: {('flat' if not book['positions'] else f"{len(book['positions'])} position(s)") if book is not None else 'unknown'}
 ```
 
 {t('h1_analyst')}

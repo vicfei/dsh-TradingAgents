@@ -71,6 +71,28 @@ jobs:
           assert links <= ids and len(links) == 2, (links, ids)
           print("html render: PASS")
           EOF
+      - name: portfolio three-state discipline (pure, no network)
+        run: |
+          python3 - <<'EOF'
+          import importlib.util, json, tempfile
+          spec = importlib.util.spec_from_file_location("ta", "scripts/tradingagents.py")
+          M = importlib.util.module_from_spec(spec); spec.loader.exec_module(M)
+          assert M.render_portfolio(None, "NVDA") == ""
+          flat = M.render_portfolio({"cash": 100.0, "currency": "USD", "positions": []}, "NVDA")
+          assert "No current position in NVDA" in flat and "Cash available: 100.00 USD" in flat
+          held = M.render_portfolio({"cash": 25000.0, "currency": "USD", "positions": [
+              {"ticker": "NVDA", "quantity": 120, "average_price": 150.0},
+              {"ticker": "AAPL", "quantity": 10}]}, "NVDA")
+          assert "Current position in NVDA: 120 units, average price 150.00" in held
+          assert "Other positions: AAPL 10" in held
+          bad = json.dumps({"positions": [{"ticker": "NVDA", "quantity": 1e999}]})
+          f = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False); f.write(bad); f.close()
+          try:
+              M.load_portfolio(f.name); assert False, "non-finite accepted"
+          except SystemExit:
+              pass
+          print("portfolio three-state: PASS")
+          EOF
       - name: data cards schema
         run: |
           python3 - <<'EOF'

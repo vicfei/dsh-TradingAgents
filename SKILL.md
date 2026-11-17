@@ -15,6 +15,7 @@ python3 $KIT/scripts/tradingagents.py --ticker DEMO --guests all --save  # + 4 g
 python3 $KIT/scripts/fetch_card.py --ticker NVDA --committee           # real data → full committee
 python3 $KIT/scripts/ledger.py --settle                                # settle due verdicts (alpha vs benchmark)
 python3 $KIT/scripts/render_html.py memos/<memo>.md                    # single-file HTML memo
+python3 $KIT/scripts/tradingagents.py --ticker X --data c.json --portfolio book.json  # holdings-aware verdict
 ```
 
 ## Track record (issue #2 loop)
