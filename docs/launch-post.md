@@ -1,68 +1,81 @@
-# 发布帖文案 v1（R1 渠道弹药——owner 过目后方可外发）
+# Launch kit v2（2026-11-17 · facts frozen at npm 0.1.2 · awesome PR #16227 已开）
 
-> 标题模板沿用既定策略：带 TradingAgents 关键词吃上游搜索流量；中英双版；结尾统一
-> 短链与 badge。发布渠道：X / V2EX（分享创造）/ 即刻 / 掘金 / Discord（rea、jevcore
-> 社区跨界）。**发帖是外部动作，须 owner 手动执行或明确授权。**
+> Owner posts these with their own accounts; copy below is paste-ready per channel.
+> Links: repo https://github.com/vicfei/dsh-TradingAgents · npm https://www.npmjs.com/package/dsh-tradingagents
+> Image: repo `assets/demo.png` (English terminal card, real run: Buffett/Munger PASS@72 · Lynch HOLD@55 · Wood BUY@62 · PM PASS@72)
+> Facts to keep accurate: 6-10 calls/session (~35-56s) · zero-key data (CBOE quote/K-line/options-IV + SEC 10-K + nasdaq news) · five tiers + PASS + REVIEW · track-record ledger settles alpha vs SPY/SSE Composite · English-first, --lang zh.
 
 ---
 
-## EN（X + Discord）
+## X / Twitter
 
-**TradingAgents, now native in DeepSeek Harness — and it knows how to abstain.**
+**Post 1 (≤280 chars, attach demo.png):**
 
-A multi-agent investment committee that runs in your terminal:
+TradingAgents, natively on DeepSeek Harness — a multi-agent investment committee that
+abstains when evidence is thin, and shows its receipts.
 
-- analyst → bull → bear → risk → PM, every claim evidence-tagged `[A#][B#][R#][G#]`
-- **PASS is a first-class verdict** — insufficient evidence means no call, with reasons
-- 4 guest seats: Buffett / Munger / Lynch / Wood critique the debate itself (they split — see demo)
-- zero-key real data: CBOE quote/K-line/options-IV + SEC 10-K + nasdaq news (Yahoo-free)
-- 6–10 model calls per session (~40s), auditable IC-MEMO output
+- every claim evidence-tagged; PASS is a first-class verdict
+- Buffett/Munger/Lynch/Wood guest seats that actually disagree
+- zero-key data: CBOE/SEC/nasdaq, no Yahoo
 
-```bash
 npm i -g dsh-tradingagents
-tradingagents demo --guests all --save
-```
 
-Not affiliated with Tauric Research — structure inspired, discipline rebuilt for auditability.
-Not investment advice. ⭐ github.com/vicfei/dsh-TradingAgents
+**Thread continuation (posts 2-4):**
 
----
+2/ The demo above is a real run: guest seats split three ways (PASS/PASS vs HOLD vs
+BUY), the risk officer logs the split as a guardrail, and the PM rules PASS naming it.
+Deterministic CLI — 6 calls for the base committee, one per guest seat.
 
-## CN（V2EX 分享创造 / 即刻 / 掘金）
+3/ Every archived verdict becomes a ledger entry. After the 5-trading-day window
+trades out, it settles: entry at the next close, raw return + alpha vs SPY (or SSE
+Composite for A-shares), plus a short reflection. The next session's PM reads those
+lessons before ruling. The committee has a scorecard.
 
-**TradingAgents 有 DSH 原生版了——一个会弃权的 AI 投研议院**
-
-楼上各位聊多智能体投研，我们把它做成了 DeepSeek Harness 插件：
-
-- 6 角色议院：分析师 → 多方 → 空方 → 风控（只立护栏禁止决策）→ PM 裁决
-- **每个主张带证据标签，裁决必须点名是哪条论据说服了它**——可审计是产品灵魂
-- **PASS 弃权是一等公民**：证据不足就拒绝表态，这是特性不是失败
-- 客座席位：巴菲特/芒格/林奇/伍德用各家方法论点评多空辩论（实测会分裂：
-  巴菲特 PASS@72 vs 伍德 HOLD@55，风控官为分歧专门立护栏条款）
-- 数据零 key：CBOE 报价/K线/**期权隐含波动** + SEC 10-K 三表 + nasdaq 新闻，
-  完全绕开被限流的雅虎；A 股走腾讯通道
-- 一场 6-10 次调用约 40 秒，离线 DEMO 零 Key 零网络可跑全程
-
-```bash
-npm i -g dsh-tradingagents
-tradingagents demo --guests all --save
-```
-
-结构致敬 Tauric Research 的 TradingAgents 与 virattt 的 ai-hedge-fund，非官方、
-无隶属；纪律为可审计性重写。不是投资建议。求星：github.com/vicfei/dsh-TradingAgents
+4/ Five tradeable tiers (BUY/OVERWEIGHT/HOLD/UNDERWEIGHT/SELL), PASS for insufficient
+evidence, and REVIEW when output can't be parsed — never silently a Hold.
+Inspired by TauricResearch/TradingAgents & virattt/ai-hedge-fund, not affiliated.
+★ github.com/vicfei/dsh-TradingAgents
 
 ---
 
-## 渠道执行清单（外发前逐项）
+## V2EX（分享创造节点）
 
-- [ ] X（EN 版 + demo.png）
-- [ ] V2EX /go/create 分享创造节点（CN 版）
-- [ ] 即刻「AI 探索站」话题（CN 版）
-- [ ] 掘金（CN 版 + 首屏图）
-- [ ] Discord：rea 官方社区 #showcase、jevcore 社区（EN 版，遵守各社区自我推广规则）
-- [ ] dsh-plugin marketplace 提交（渠道定位待查——见 ROADMAP R1 备注）
-- [ ] awesome-dsh 系 PR（仓定位待查）
-- [ ] Trendshift 徽章申请（通常需基础星标量，滞后执行）
+**标题**：TradingAgents 有 DeepSeek Harness 原生版了——一个会弃权、有战绩的 AI 投研议院
 
-> 备注：marketplace/awesome-dsh 的确切提交入口本窗口尚未查实——外发前 owner 确认
-> 或授权我调研（GitHub API 可用）。
+**正文**：docs/launch-post.md 旧 CN 版基础上更新三点——①评级五档+PASS/REVIEW 双出口（读不出的判决绝不静默当 Hold）②战绩台账：每份判决 5 个交易日后按相对 SPY/上证的 alpha 结算并写反思，下次开庭 PM 会读教训 ③全仓英文优先（面向国际），`--lang zh` 可切中文。安装：`npm i -g dsh-tradingagents`；离线 DEMO 零 key 零网络 40 秒出完整 IC-MEMO。附 demo.png。结构致敬 Tauric 与 virattt，非官方无隶属；不是投资建议。求星。
+
+---
+
+## 即刻（AI 探索站话题）
+
+短版 200 字：把 TradingAgents 做成了 DSH 插件：多空辩论议院，每个主张带证据标签，证据不足就 PASS 弃权；巴菲特/芒格/林奇/伍德客座评辩会真分裂（实测 PASS/PASS/HOLD/BUY）；判决 5 个交易日后自动按相对基准的 alpha 结算并写反思——议院有自己的战绩单。`npm i -g dsh-tradingagents`，离线 demo 零 key。附图。不是投资建议。
+
+---
+
+## 掘金
+
+标题：TradingAgents, now native in DeepSeek Harness — a committee that abstains with receipts
+（或中文标题：会弃权的 AI 投研议院：把 TradingAgents 搬进 DeepSeek Harness）
+正文 = X thread 1-4 合并 + Quick start 代码块 + demo.png + 对比表截图/引用 README 表格。
+
+---
+
+## Discord（rea #showcase / jevcore 社区）
+
+EN，遵守各社区自我推广规则（先看置顶）。用 X Post 1 + 一句 "Track-record loop: every
+verdict settles against its benchmark after 5 trading days — the committee reads its
+own lessons." + repo 链接。
+
+---
+
+## 执行清单
+
+- [x] awesome-dsh-plugin PR **#16227** 已提交（等审）
+- [ ] X 主贴+线程（demo.png）
+- [ ] V2EX 分享创造
+- [ ] 即刻 AI 探索站
+- [ ] 掘金
+- [ ] Discord：rea / jevcore
+- [ ] （滞后）Trendshift 徽章——需基础星标量；0ms-marketplace 系备选仓（0xsline 1.4k★ 等）在主渠道过审后再投
+
+> 渠道转化第 7 天复盘（R1 项）：以 npm 周下载 + repo 星标为口径。
