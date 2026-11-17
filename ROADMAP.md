@@ -112,7 +112,10 @@ issue → branch → PR.
       5,167 out); `--max-calls N` aborts cleanly before the (N+1)-th call with an
       explicit message (verified trip at 2); take_usage parser unit-tested in CI
       (issue #7)
-- [ ] `--rounds N` configurable debate rounds (default 1 keeps the cost profile)
+- [x] `--rounds N` debate rounds (2026-11-17, PR #22): bull opening + N×(bear cross-exam +
+      bull response); the final round keeps the focused rebuttal prompt (strongest attacks
+      only, ≤3 items); rounds=1 is exactly the original shape; live-verified rounds=2 →
+      8 calls (2N+4) with multi-turn separators in the memo, default → 6 calls unchanged
       (issue #8)
 
 ## R4 · Ecosystem & portfolio committee (12-06 → 12-15) — the two wings of scale
