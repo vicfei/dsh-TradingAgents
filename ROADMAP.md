@@ -42,10 +42,17 @@
       `--guests` 评辩而非盲估（差异点：看完整多空辩论后用各家方法论裁决式点评）；
       DEMO 全客座实测 10 调用 39s——人格真实分裂（PASS@72 vs HOLD@55），风控官为分歧
       立 [G8] 条款，PM 点名客座分裂入裁决；PERSONAS 定义内嵌并标注同步来源（bundle 自包含）
-- [ ] npm 0.1.0 skill bundle（按 docs/plugin-spec.md jevcore-dsh 模板）：
-      `dsh plugin add dsh-tradingagents` 一行装，委员会作为 typed tools 暴露
-- [ ] super-agent 分发接入（@vicfei/dsh-super-agent 可装形态）
-- [ ] 成本护栏：每场上限（调用数/token 预算），headless CI 冒烟入 README badge
+- [x] npm 0.1.0 skill bundle（2026-11-17，待 owner OTP 手动 publish——指引 docs/PUBLISH-0.1.0.md）：
+      weknora-ops 已验证的分发车模式（空 cordis.patch + skills/ + bin CLI spawn Python 引擎）；
+      `npm pack` 实测干净（13 文件 43KB），临时 prefix 安装冒烟通过（demo 开庭 8 调用 33s、
+      card 茅台真实数据、纪要/卡片落调用方 cwd）
+- [x] super-agent 分发接入就绪（2026-11-17）：包形态即已验证通道可装形态（npm i -g +
+      ~/.dsh/skills 符号链接）；挂靠 @vicfei/dsh-super-agent 侧列表属兄弟窗口资产，由
+      owner/该窗口执行——本仓不越界
+- [x] CI headless 冒烟（2026-11-17）：.github/workflows/ci.yml——引擎语法/数据卡 schema/
+      npm pack 干净三关；LLM 真开庭冒烟走 workflow_dispatch 且须 DEEPSEEK_API_KEY secret；
+      badge 入 README 首屏
+- [ ] 成本护栏：每场上限（调用数/token 预算）
 
 ### M2 · 人格包 + 组合议院（第 4-6 周）
 - [ ] persona packs（ai-hedge-fund 式：巴菲特/芒格/林奇…客座席位，可配置）

@@ -3,7 +3,7 @@
 **A multi-agent investment committee that debates in your terminal — every claim tagged, every verdict auditable.**
 **让 TradingAgents 式的多智能体投研议院在你的 DSH 终端里开庭——每个主张带证据标签，每次裁决可审计。**
 
-[![DeepSeek Harness](https://img.shields.io/badge/DSH-plugin-4E6DD4)](https://github.com/deepseek-ai) [![License: MIT](https://img.shields.io/badge/license-MIT-3da639)](LICENSE) [![IC-MEMO](https://img.shields.io/badge/output-IC--MEMO-ff6b35)](templates/IC-MEMO.md)
+[![DeepSeek Harness](https://img.shields.io/badge/DSH-plugin-4E6DD4)](https://github.com/deepseek-ai) [![License: MIT](https://img.shields.io/badge/license-MIT-3da639)](LICENSE) [![IC-MEMO](https://img.shields.io/badge/output-IC--MEMO-ff6b35)](templates/IC-MEMO.md) [![ci](https://github.com/vicfei/dsh-TradingAgents/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
 
 > Inspired by [Tauric Research's TradingAgents](https://github.com/TauricResearch/TradingAgents) and
 > [virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — restructured as a
@@ -14,7 +14,7 @@
 | | TradingAgents | ai-hedge-fund | **dsh-tradingagents** |
 |---|---|---|---|
 | Runs where | Python lab | Python lab | **Your DSH terminal/session** — model key you already have |
-| Model calls/session | dozens | 10+ | **6 (≈31s, ¥分级成本)** |
+| Model calls/session | dozens | 10+ | **6 (+1 per guest seat, ≈31–40s)** |
 | Output | text logs | trades table | **[IC-MEMO](templates/IC-MEMO.md)** — open, auditable memo format |
 | Evidence discipline | — | — | **every claim tagged `[A#][B#][R#][G#]`, verdict must name what moved it** |
 | Abstention | — | — | **PASS is a first-class verdict** — “证据不足，拒绝表态” |
@@ -25,6 +25,18 @@ risk guardrails → portfolio manager. The PM cannot cite anything untagged, can
 risk triggers, and must abstain when evidence is insufficient.
 
 ## Quick start (zero extra keys)
+
+Install as a plugin (npm 0.1.0, ships the engine + skill):
+
+```bash
+npm i -g dsh-tradingagents
+tradingagents demo --guests all --save          # offline synthetic smoke, ~40s
+tradingagents card --ticker NVDA --committee    # zero-key real data → full committee
+# register the DSH skill:
+ln -s "$(npm root -g)/dsh-tradingagents/skills/dsh-tradingagents" ~/.dsh/skills/dsh-tradingagents
+```
+
+Or run from source:
 
 ```bash
 git clone https://github.com/vicfei/dsh-TradingAgents && cd dsh-tradingagents

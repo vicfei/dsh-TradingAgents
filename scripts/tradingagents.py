@@ -19,7 +19,8 @@
 import argparse, json, os, re, subprocess, sys, time
 
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MEMOS = os.path.join(KIT, "memos")
+# npm CLI 形态经 TRADINGAGENTS_MEMOS 把纪要落到调用方 cwd（缺省落仓内，开发行为不变）
+MEMOS = os.environ.get("TRADINGAGENTS_MEMOS") or os.path.join(KIT, "memos")
 
 # 客座人格包：定义同步自姊妹仓 dsh-ai-hedge-fund scripts/hedge_fund.py 的 PERSONAS
 GUEST_PERSONAS = {

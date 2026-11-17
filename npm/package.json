@@ -1,0 +1,53 @@
+{
+  "name": "dsh-tradingagents",
+  "version": "0.1.0",
+  "description": "TradingAgents, natively on DeepSeek Harness — multi-agent investment committee CLI (analyst / bull / bear / risk / PM, plus Buffett/Munger/Lynch/Wood guest seats) with evidence tags, PASS as a first-class verdict, auditable IC-MEMO output, and a zero-key OpenBB rich data card (CBOE quote/K-line/IV + SEC 10-K + nasdaq news).",
+  "type": "module",
+  "bin": {
+    "tradingagents": "bin/tradingagents.js"
+  },
+  "scripts": {
+    "prepack": "node build.mjs"
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "manifestVersion": 1
+  },
+  "files": [
+    "bin",
+    "skills",
+    "scripts",
+    "templates",
+    "data",
+    "cordis.patch.yml",
+    "build.mjs",
+    "LICENSE"
+  ],
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "tradingagents",
+    "ai-hedge-fund",
+    "multi-agent-trading",
+    "investment-committee",
+    "bull-bear",
+    "quant",
+    "ic-memo"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vicfei/dsh-TradingAgents.git"
+  },
+  "homepage": "https://github.com/vicfei/dsh-TradingAgents#readme",
+  "bugs": {
+    "url": "https://github.com/vicfei/dsh-TradingAgents/issues"
+  },
+  "license": "MIT",
+  "author": "vicfei"
+}

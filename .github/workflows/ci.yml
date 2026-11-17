@@ -1,0 +1,41 @@
+name: ci
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - name: engine syntax
+        run: python3 -m py_compile scripts/tradingagents.py scripts/fetch_card.py
+      - name: data cards schema
+        run: |
+          python3 - <<'EOF'
+          import json, glob, sys
+          ok = 0
+          for p in glob.glob("cards/*.json") + glob.glob("data/demo/*.json"):
+              c = json.load(open(p))
+              for k in ("ticker", "as_of", "price", "fundamentals", "technicals"):
+                  assert c.get(k), f"{p} missing {k}"
+              assert len(c["fundamentals"]) >= 3, f"{p} fundamentals < 3"
+              ok += 1
+          print(f"{ok} cards validated")
+          EOF
+      - name: npm bundle packs clean
+        run: cd npm && npm pack --dry-run && rm -f *.tgz
+      # LLM 真开庭冒烟走 manual dispatch（6 调用/次，须配 DEEPSEEK_API_KEY secret）
+      - name: committee smoke (needs secret, dispatch only)
+        if: github.event_name == 'workflow_dispatch' && env.DEEPSEEK_API_KEY != ''
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          grep -q '^export DEEPSEEK_API_KEY=' ~/.bashrc || echo "export DEEPSEEK_API_KEY=$DEEPSEEK_API_KEY" >> ~/.bashrc
+          timeout 300 python3 scripts/tradingagents.py --ticker DEMO | grep -q "IC-MEMO"

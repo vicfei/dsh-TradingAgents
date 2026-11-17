@@ -17,7 +17,8 @@ nasdaq 新闻，全部零 key 且不经雅虎（yfinance 全局限流痛点就�
 import argparse, datetime as dt, json, math, os, subprocess, sys
 
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CARDS = os.path.join(KIT, "cards")
+# npm CLI 形态经 TRADINGAGENTS_CARDS 把数据卡落到调用方 cwd（缺省落仓内，开发行为不变）
+CARDS = os.environ.get("TRADINGAGENTS_CARDS") or os.path.join(KIT, "cards")
 
 
 def pct(x):
