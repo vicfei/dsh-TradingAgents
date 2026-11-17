@@ -134,6 +134,10 @@ T = {
     "h_pm": {"en": "## {n} · Portfolio manager verdict", "zh": "## {n} · 组合经理裁决"},
     "verdict_line": {"en": "- Verdict **{d}** (confidence {c})", "zh": "- 裁决 **{d}**（置信度 {c}）"},
     "guests_label": {"en": "guests", "zh": "guests"},
+    "track_record": {
+        "en": "\n\nTrack record — prior settled decisions and lessons (cite them as [T#] where they move you):\n",
+        "zh": "\n\n战绩台账——既往已结算判决与教训（若影响你须引用为 [T#]）：\n",
+    },
     "footer": {"en": "*{t}s · {n} calls · deepseek-chat · temperature=0 · data={f} · not investment advice*", "zh": "*耗时 {t}s · {n} 次调用 · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*"},
 }
 
@@ -180,6 +184,12 @@ def main():
     card = json.load(open(args.data))
     guests = (list(GUEST_PERSONAS) if args.guests == "all"
               else [g.strip() for g in args.guests.split(",") if g.strip() in GUEST_PERSONAS])
+    past_context = ""
+    try:  # the track-record loop (issue #2): only the PM reads prior outcomes
+        import ledger
+        past_context = ledger.context_block(args.ticker)
+    except Exception:
+        pass
     t0 = time.time()
     data = json.dumps(card, ensure_ascii=False, indent=1)
 
@@ -206,6 +216,7 @@ def main():
     pm = llm(t("pm"),
              f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
              + (t("pm_guests") + guest_digest if guest_digest else "")
+             + (t("track_record") + past_context if past_context else "")
              + t("guardrails") + risk,
              json_out=True)
 
@@ -266,6 +277,11 @@ invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
         path = os.path.join(MEMOS, f"{args.ticker}-{card.get('as_of', 'x')}{suffix}.md")
         open(path, "w").write(memo)
         print(f"→ {path}", file=sys.stderr)
+        try:  # archive → pending ledger entry (idempotent per ticker+date)
+            import ledger
+            ledger.index()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
