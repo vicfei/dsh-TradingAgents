@@ -20,6 +20,7 @@ python3 $KIT/scripts/fetch_card.py --ticker NVDA --date 2025-06-15             #
 # cost guard: every memo footer reports calls + tokens; --max-calls N aborts cleanly at the cap
 # --rounds N adds N-1 extra bear/bull exchanges (default 1 keeps the cost profile)
 tradingagents portfolio --tickers NVDA,AAPL,MSFT --save             # multi-ticker allocation debate
+tradingagents backtest --tickers AAPL --start 2026-08-01 --end 2026-10-01 --every 14 --report  # grid into an isolated ledger
 ```
 
 ## Track record (issue #2 loop)
