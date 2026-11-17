@@ -26,10 +26,17 @@
 
 - [x] **npm 0.1.0 发布**（owner OTP 2026-11-17）→ 官方源验证 latest=0.1.0；全新
       `npm i -g` → `tradingagents demo` 31s 完整开庭冒烟通过
-- [ ] 演示资产：asciinema/GIF 一场（DEMO 全客座 39s 分裂判决是剧本——"会弃权还会
-      内讧的 AI 议院"）；首屏嵌入
-- [ ] README 对比表更新：加"成本 6-10 调用/场 vs 上游几十次"、"零 key 数据面"两行
-- [ ] 渠道清单逐项：dsh-plugin marketplace 提交 / awesome-dsh 系 PR / Trendshift
+- [x] 演示资产（2026-11-17）：assets/demo.png 终端卡（0.1.0 真跑数据：四客座分裂
+      PASS@72/72/62 vs HOLD@55，视觉验收过）首屏嵌入 + assets/demo.cast 可回放；
+      asciinema.org 匿名上传已终结（302 登录），动图版待 owner 账号
+- [x] README 对比表：加"Model calls dozens (tool loops × debates)"与"市场数据零 key
+      Yahoo-free"两行
+- [x] marketplace 入口查实（2026-11-17）：真入口=awesome-dsh-plugin/awesome-dsh-plugin
+      （24.9k★，data/plugins/ 一文件投稿制）→ dsh-market（12.7k★）目录自动聚合；
+      投稿件已备（docs/marketplace-submission/，monorepo 子包格式）；**`dsh plugin add
+      dsh-tradingagents` 实证可装**（0.2.2-rc.1，803ms）——外发 PR 待 owner 确认
+- [x] 发布帖文案 v1（docs/launch-post.md 中英双版 + 渠道执行清单）——外发须 owner 过目
+- [ ] 渠道清单逐项（入口已查实、投稿件已备，见上）：awesome-dsh PR（待 owner 确认）→ X/V2EX/即刻/掘金（文案待 owner 过目）/ Discord；Trendshift
       徽章 / X + V2EX + 即刻 + 掘金双语帖（标题带 TradingAgents 关键词）/ Discord
       （rea/jevcore 社区跨界）——发布帖文案先给 owner 过目
 - [ ] 星标看板：接入 gap-radar 家族下载看板 + 每日星标记录，第 7 天复盘渠道转化
