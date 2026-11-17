@@ -9,12 +9,20 @@
 > [virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — restructured as a
 > native DeepSeek Harness experience. Not affiliated; independent community project.
 
+![demo](assets/demo.png)
+
+*A real `tradingagents demo --guests all --save` run (npm 0.1.0, 10 calls · 55s): the four
+guest seats split — Buffett/Munger PASS@72, Lynch PASS@62, Wood HOLD@55 — the risk officer
+logs the split as guardrail [G8], and the PM rules PASS@72 naming it. Replay the full cast:
+`asciinema play assets/demo.cast`*
+
 ## Why this exists
 
 | | TradingAgents | ai-hedge-fund | **dsh-tradingagents** |
 |---|---|---|---|
 | Runs where | Python lab | Python lab | **Your DSH terminal/session** — model key you already have |
-| Model calls/session | dozens | 10+ | **6 (+1 per guest seat, ≈31–40s)** |
+| Model calls/session | dozens (tool loops × debates) | 10+ | **6 (+1 per guest seat, ≈31–40s)** |
+| Market data | Yahoo-centric, keys optional | — | **zero-key by default: CBOE quote/K-line/options-IV + SEC 10-K + nasdaq news (OpenBB), Tencent fallback** |
 | Output | text logs | trades table | **[IC-MEMO](templates/IC-MEMO.md)** — open, auditable memo format |
 | Evidence discipline | — | — | **every claim tagged `[A#][B#][R#][G#]`, verdict must name what moved it** |
 | Abstention | — | — | **PASS is a first-class verdict** — “证据不足，拒绝表态” |

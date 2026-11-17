@@ -24,7 +24,8 @@
 
 > 阻塞点唯一且是 owner 动作：npm publish（OTP 手动，指引 `docs/PUBLISH-0.1.0.md`）。
 
-- [ ] **npm 0.1.0 发布**（owner）→ 全新环境 `npm i -g && tradingagents demo` 冒烟验证
+- [x] **npm 0.1.0 发布**（owner OTP 2026-11-17）→ 官方源验证 latest=0.1.0；全新
+      `npm i -g` → `tradingagents demo` 31s 完整开庭冒烟通过
 - [ ] 演示资产：asciinema/GIF 一场（DEMO 全客座 39s 分裂判决是剧本——"会弃权还会
       内讧的 AI 议院"）；首屏嵌入
 - [ ] README 对比表更新：加"成本 6-10 调用/场 vs 上游几十次"、"零 key 数据面"两行
