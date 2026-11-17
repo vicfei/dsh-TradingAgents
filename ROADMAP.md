@@ -87,8 +87,11 @@ issue → branch → PR.
 
 ## R3 · Input & rendering (11-29 → 12-05) — visible quality
 
-- [ ] IC-MEMO single-page HTML render (`--html`): static single file + sidebar TOC,
-      shareable (issue #4)
+- [x] IC-MEMO single-page HTML render (2026-11-17, PR #17): `--html` / scripts/render_html.py —
+      static single file, sidebar TOC, yaml block, tables, mobile/print CSS, zero external
+      assets; renderer structure unit-tested in CI. Along the way it exposed and fixed two
+      English-first leaks: the engine prompt now enforces output language, and the bundled
+      DEMO data card was translated (synthetic numbers unchanged)
 - [ ] `--portfolio` three-state input: held / flat / not-provided strictly distinct
       (issue #5)
 - [ ] `--date` historical as-of mode: SEC filed-as-of semantics via the sec provider —

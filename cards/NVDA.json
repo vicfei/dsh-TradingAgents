@@ -1,32 +1,32 @@
 {
  "ticker": "NVDA",
  "as_of": "2026-11-16",
- "price": 155.6,
+ "price": 156.59,
  "fundamentals": [
-  "现价 155.60 USD（日内 -4.12%，买一 155.58/卖一 155.6） — 来源：CBOE 报价（截至 2026-11-16）",
-  "30 日期权隐含波动率 63% — 来源：CBOE IV30/HV30（截至 2026-11-16）",
-  "FY2026（报告期 2026-01-25） 营收 $215.9B（上年 $130.5B，同比 +65.5%） — 来源：SEC 10-K · FY2026（报告期 2026-01-25）",
-  "FY2026（报告期 2026-01-25） 净利润 $120.1B（净利率 55.6%） — 来源：SEC 10-K · FY2026（报告期 2026-01-25）",
-  "FY2026（报告期 2026-01-25） 毛利率 71.1%（毛利 $153.5B） — 来源：SEC 10-K · FY2026（报告期 2026-01-25）",
-  "FY2026（报告期 2026-01-25） 营业利润率 60.4%（营业利润 $130.4B） — 来源：SEC 10-K · FY2026（报告期 2026-01-25）",
-  "FY2026（报告期 2026-01-25） 摊薄每股收益 4.90 — 来源：SEC 10-K · FY2026（报告期 2026-01-25）",
-  "净现金 $2.1B（现金+短投 $10.6B / 有息负债 $8.5B） — 来源：SEC 10-K 资产负债表（2026-01-25）",
-  "归母股东权益 $157.3B — 来源：SEC 10-K 资产负债表（2026-01-25）",
-  "FY2026（报告期 2026-01-25） 经营现金流 $102.7B、资本开支 $6.0B → 自由现金流 $96.7B — 来源：SEC 10-K 现金流量表",
-  "FY2026（报告期 2026-01-25） 股东回报：回购 $40.1B、分红 $1.0B — 来源：SEC 10-K 现金流量表",
-  "总市值约 $3,814.4B（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价",
-  "52 周区间 162.85–239.24，现价处于 0% 分位 — 来源：CBOE 日线（截至 2026-11-13）"
+  "Last 156.59 USD (intraday +0.29%, bid 156.45 / ask 156.75) — Source: CBOE quote (as of 2026-11-16)",
+  "30-day options-implied volatility 64% — Source: CBOE IV30/HV30 (as of 2026-11-16)",
+  "FY2026 (period ending 2026-01-25) revenue $215.9B (prior $130.5B, YoY +65.5%) — Source: SEC 10-K · FY2026 (period ending 2026-01-25)",
+  "FY2026 (period ending 2026-01-25) net income $120.1B (net margin 55.6%) — Source: SEC 10-K · FY2026 (period ending 2026-01-25)",
+  "FY2026 (period ending 2026-01-25) gross margin 71.1% (gross profit $153.5B) — Source: SEC 10-K · FY2026 (period ending 2026-01-25)",
+  "FY2026 (period ending 2026-01-25) operating margin 60.4% (operating income $130.4B) — Source: SEC 10-K · FY2026 (period ending 2026-01-25)",
+  "FY2026 (period ending 2026-01-25) diluted EPS 4.90 — Source: SEC 10-K · FY2026 (period ending 2026-01-25)",
+  "Net cash $2.1B (cash + ST investments $10.6B / interest-bearing debt $8.5B) — Source: SEC 10-K balance sheet (2026-01-25)",
+  "Common shareholders' equity $157.3B — Source: SEC 10-K balance sheet (2026-01-25)",
+  "FY2026 (period ending 2026-01-25) operating cash flow $102.7B, capex $6.0B → free cash flow $96.7B — Source: SEC 10-K cash-flow statement",
+  "FY2026 (period ending 2026-01-25) shareholder returns: buybacks $40.1B, dividends $1.0B — Source: SEC 10-K cash-flow statement",
+  "Market cap ≈ $3,838.6B (fiscal-year weighted diluted shares × last price) — Source: SEC 10-K shares × CBOE price",
+  "52-week range 162.85–239.24, price at the 0% percentile — Source: CBOE daily bars (as of 2026-11-13)"
  ],
  "news": [
-  "Barchart：Stock Indexes Settle Sharply Lower on Big Tech Drubbing（https://www.nasdaq.com/articles/stock-indexes-settle-sharply-lower-big-tech-drubbing）",
-  "The Motley Fool：1 Number Reveals Which Is the Better Buy Between Nvidia and AMD（https://www.nasdaq.com/articles/1-number-reveals-which-better-buy-between-nvidia-and-amd）",
-  "The Motley Fool：Prediction: Nov. 18 Will Be a Huge Day for AI Power Stocks. Here’s Why.（https://www.nasdaq.com/articles/prediction-nov-18-will-be-huge-day-ai-power-stocks-heres-why）"
+  "The Motley Fool：Jensen Huang Stepped Away From Nvidia, and That Might Not Be the Company's Biggest Problem（https://www.nasdaq.com/articles/jensen-huang-stepped-away-nvidia-and-might-not-be-companys-biggest-problem）",
+  "The Motley Fool：Nvidia's Biggest Jensen Huang Problem Was Hiding in Plain Sight（https://www.nasdaq.com/articles/nvidias-biggest-jensen-huang-problem-was-hiding-plain-sight）",
+  "Barchart：Stock Indexes Settle Sharply Lower on Big Tech Drubbing（https://www.nasdaq.com/articles/stock-indexes-settle-sharply-lower-big-tech-drubbing）"
  ],
  "technicals": {
-  "trend": "现价 跌破 60 日均线（SMA60=215.25）",
-  "momentum": "20 日动量 -23.9%",
-  "volatility": "30 日年化波动 48%",
-  "range52": "52 周区间 162.85–239.24，现价处于 0% 分位 — 来源：CBOE 日线（截至 2026-11-13）"
+  "trend": "Price is below the 60-day MA (SMA60=215.25)",
+  "momentum": "20-day momentum -23.9%",
+  "volatility": "30-day annualized volatility 48%",
+  "range52": "52-week range 162.85–239.24, price at the 0% percentile — Source: CBOE daily bars (as of 2026-11-13)"
  },
  "_source": "openbb:cboe+sec+nasdaq",
  "_providers": {
@@ -34,7 +34,7 @@
   "quote": "cboe",
   "fundamentals": "sec",
   "news": "nasdaq",
-  "fetched_at": "2026-11-17T11:54:45"
+  "fetched_at": "2026-11-17T17:29:16"
  },
- "_note": "M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；降级块：无"
+ "_note": "M1 rich card: CBOE quote/K-line/IV + SEC 10-K statements + nasdaq news, zero-key and Yahoo-free; degraded blocks: none"
 }

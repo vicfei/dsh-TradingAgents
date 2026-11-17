@@ -85,8 +85,8 @@ GUEST_PERSONAS = {
 
 T = {
     "sys": {
-        "en": "You play a fixed role in an investment committee. Discipline: use only the given data, never invent numbers; begin every claim with a [B#]/[R#]/[A#]/[G#] tag and cite source tags.",
-        "zh": "你在一场投资委员会中扮演固定角色。纪律：只使用给定数据，禁止编造数字；每个主张以 [B#]/[R#]/[A#]/[G#] 标签开头并引用来源标签。",
+        "en": "You play a fixed role in an investment committee. Discipline: use only the given data, never invent numbers; begin every claim with a [B#]/[R#]/[A#]/[G#] tag and cite source tags. Write your entire output in English.",
+        "zh": "你在一场投资委员会中扮演固定角色。纪律：只使用给定数据，禁止编造数字；每个主张以 [B#]/[R#]/[A#]/[G#] 标签开头并引用来源标签。全部输出使用中文。",
     },
     "analyst": {
         "en": "You are the analyst: transcribe the data card into a fact list tagged [A#], one entry per fact, nothing added.",
@@ -209,6 +209,7 @@ def main():
     ap.add_argument("--lang", choices=("en", "zh"), default=os.environ.get("TRADINGAGENTS_LANG") or "en",
                     help="output language (default en)")
     ap.add_argument("--save", action="store_true", help="archive the memo under memos/")
+    ap.add_argument("--html", action="store_true", help="also render a single-file HTML memo (issue #4)")
     args = ap.parse_args()
     LANG = args.lang
     t = lambda k, **kw: T[k][LANG].format(**kw) if kw else T[k][LANG]
@@ -317,6 +318,15 @@ invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
             ledger.index()
         except Exception:
             pass
+    if args.html:
+        try:
+            import render_html
+            html_path = os.path.splitext(path if args.save else os.path.join(MEMOS, f"{args.ticker}-{card.get('as_of', 'x')}{'-guests' if guest_memos else ''}.md"))[0] + ".html"
+            os.makedirs(os.path.dirname(html_path), exist_ok=True)
+            open(html_path, "w", encoding="utf-8").write(render_html.render(memo))
+            print(f"→ {html_path}", file=sys.stderr)
+        except Exception as e:
+            print(f"⚠ html render failed: {type(e).__name__}", file=sys.stderr)
 
 
 if __name__ == "__main__":
