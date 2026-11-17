@@ -131,8 +131,13 @@ issue → branch → PR.
       (live: 3 tickers → 8 calls, 42s; the PM walked guardrail compliance per weight and
       refused to claim diversification without correlation evidence). IC-MEMO portfolio
       variant documented in the template (issue #9)
-- [ ] cordis typed-tools plugin module (0.2.0): real `dsh plugin add` registration,
-      committee exposed as typed tools (issue #10)
+- [x] cordis typed-tools plugin module 0.2.0 (2026-11-17, PR #26): real patch insert +
+      lib/index.js registering `committee_session` and `verdict_settle` on ctx.tools via
+      @deepseek-ai/dsh-tools defineTool (dsh-market-specimen archaeology; DSL pitfalls
+      documented in plugin-spec.md). Verified: stub-ctx contract test (registration +
+      real settle execution + render) and `dsh plugin add` of the local tarball into a
+      live profile (211ms, patch/module/bin all in place). Publish 0.2.0 = owner OTP
+      (issue #10)
 - [x] Backtest grid + track-record page (2026-11-17, PR #24): scripts/backtest.py —
       iter_grid (never past today) / per-cell as-of card → committee into a **run-local
       isolated ledger** (a sweep never floods the ledger real sessions read back) /

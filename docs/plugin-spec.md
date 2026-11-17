@@ -52,3 +52,22 @@ dsh-tradingagents/
 - 环境出口约定：`TRADINGAGENTS_MEMOS` / `TRADINGAGENTS_CARDS`——引擎工件落调用方 cwd
   而非（可能只读的）全局包目录
 - 完整 typed-tools cordis 插件模块（`dsh plugin add` 后自动注册工具面）留 0.2.0
+
+
+## 0.2.0 typed-tools 实录（2026-11-17，issue #10）
+
+真实插件三件齐了：`cordis.patch.yml` 真插条（`- insert: [id, name]`，dsh-market 同款）+
+`lib/index.js`（标准 cordis 插件：`export const name/inject=["tools"]/apply(ctx)`，经
+`@deepseek-ai/dsh-tools` 的 `defineTool` 在 `ctx.tools.register` 注册 committee_session
+与 verdict_settle）+ 既有 skill/CLI 分发面不变。
+
+dsh-tools 的 DSL 坑（合同测试逐个踩出）：
+- 可选参数**不得**写 `required: false`——键省略即可（"required must be true when present"）
+- `output` 必填且含 `schema`（**value DSL 不支持顶层 `required` 数组**，逐属性 `required: true` 合法）
+  与 `render(args, value) => [{type:"text",...}]`
+- `execute(args, exec)` 返回值须匹配 output schema（exec.agent 可判调用方会话）
+- 版本面：npm 公开 @deepseek-ai/dsh-tools@0.0.1-rc.1 vs dsh 0.2.2 内置 0.2.2-rc.1——
+  peerDependencies 放宽（>=0.0.1-rc.1）双版合同测试均过
+
+验证三层：stub-ctx 合同测试（注册+真执行 settle+render）→ `dsh plugin add` 本地 tarball
+入真实 profile（211ms，patch/模块/bin 全落位）→（待 owner）真会话调用 committee_session。

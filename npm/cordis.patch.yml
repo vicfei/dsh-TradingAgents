@@ -1,12 +1,10 @@
-# dsh-tradingagents bundle layer.
+# dsh-tradingagents bundle layer (0.2.0): a real plugin insert.
 #
-# Deliberately inserts no plugin entry: this bundle is a distribution vehicle —
-# a skill (skills/dsh-tradingagents/SKILL.md, discovered by @deepseek-ai/dsh-skill-filesystem
-# from ~/.dsh/skills/ or <project>/.dsh/skills/) and a CLI (`tradingagents`, npm bin)
-# that spawns the bundled Python engine. A cordis plugin import would fail: the
-# package ships no plugin module.
-#
-# Install:
-#   npm i -g dsh-tradingagents                                   # puts tradingagents on PATH
-#   ln -s <pkg>/skills/dsh-tradingagents ~/.dsh/skills/dsh-tradingagents   # registers the skill
-[]
+# The patch inserts the plugin into the profile's layer stack; the module
+# (lib/index.js) then registers the agent tools (committee_session,
+# verdict_settle) on ctx.tools via @deepseek-ai/dsh-tools.
+# The skill (skills/dsh-tradingagents/SKILL.md) is still discovered by
+# dsh-skill-filesystem; the CLI stays on PATH via npm bin.
+- insert:
+    - id: dsh-tradingagents
+      name: 'dsh-tradingagents'
