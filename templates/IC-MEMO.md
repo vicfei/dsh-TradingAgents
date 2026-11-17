@@ -1,37 +1,44 @@
-# IC-MEMO v0.1 — 投资委员会会议纪要（开放格式）
+# IC-MEMO v0.1 — Investment Committee Memo (an open format)
 
-> IC-MEMO 是多智能体投研决策的可审计输出格式：每一条主张带证据标签，
-> 每一次裁决记录动因，允许第三方复核。规范仓与更多语言实现见 docs/。
+> IC-MEMO is the auditable output format for multi-agent investment decisions:
+> every claim carries an evidence tag, every verdict records what moved it,
+> and third parties can re-audit the reasoning. Spec repo and more language
+> implementations: see docs/. (中文说明见 README.zh-CN.md)
 
 ```yaml
-ticker: <标的>
-as_of: <数据日>
-committee: bullbear/<version>
-decision: BUY | HOLD | SELL | PASS      # PASS = 证据不足，拒绝表态
+ticker: <symbol>
+as_of: <data date>
+committee: tradingagents/<version>
+decision: BUY | HOLD | SELL | PASS      # PASS = evidence insufficient, decline to rule
 confidence: <0-100>
-size_hint: <仓位建议区间%>
-invalidation: [ <触发重审的条件，可证伪> ]
+size_hint: <position sizing hint, %>
+invalidation: [ <falsifiable re-review triggers> ]
 ```
 
-## 1 · 分析师纪要（事实层）
-- [A#] <事实> — 来源：<数据项/日期>
-（只允许转写输入数据，不得引入外部信息）
+## 1 · Analyst notes (fact layer)
+- [A#] <fact> — Source: <data item / date>
+(transcribe the input data only; no outside information)
 
-## 2 · 多空辩论（论证层）
-### 多方（Bull）
-- [B#] <论点，引用 [A#]>
-### 空方（Bear）
-- [R#] <反驳/独立论点，引用 [A#] 或攻击 [B#]>
-### 多方回应
-- [B#] <回应 [R#]>
+## 2 · Bull-bear debate (argument layer)
+### Bull
+- [B#] <thesis, citing [A#]>
+### Bear
+- [R#] <rebuttal / independent bear case, citing [A#] or attacking [B#]>
+### Bull rebuttal
+- [B#] <response to [R#]>
 
-## 3 · 风控护栏（约束层）
-- 风险官只立约束不做决策：回撤/仓位/相关性上限、失效触发器
-- [G#] <约束或触发器>
+## 3 · Guest critiques (optional; persona layer)
+| Guest | Stance | Conviction |
+|---|---|---|
+- [P#] <persona-methodology critique, citing [A#]/[B#]/[R#]; last item: "If I were the PM…"
 
-## 4 · 组合经理裁决（决策层）
-- 决策与置信度，**必须点名哪些 [B#]/[R#]/[G#] 动摇或说服了它**
-- 与裁决冲突的未决异议记录在案（不被删除，只被标注未被采纳+理由）
+## 4 · Risk guardrails (constraint layer)
+- The risk officer only sets constraints, never decides: drawdown/position/correlation caps, invalidation triggers
+- [G#] <constraint or trigger>
 
-## 5 · 追溯
-- 模型/版本/温度/耗时/成本；各轮完整原文见 sidecar
+## 5 · Portfolio manager verdict (decision layer)
+- Verdict and confidence; **must name which [B#]/[R#]/[G#]/[P#] moved or persuaded it**
+- Unresolved dissent that conflicts with the verdict stays on record (never deleted; only marked not-adopted, with reasons)
+
+## 6 · Provenance
+- Model / version / temperature / elapsed time / cost; full round transcripts in the sidecar

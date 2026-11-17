@@ -1,21 +1,21 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="422" font-family="WenQuanYi Zen Hei Mono,Menlo,monospace" font-size="13">
-<rect width="920" height="422" rx="10" fill="#0d1117"/>
-<rect width="920" height="36" rx="10" fill="#161b22"/><rect y="30" width="920" height="6" fill="#161b22"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="940" height="422" font-family="WenQuanYi Zen Hei Mono,Menlo,monospace" font-size="13">
+<rect width="940" height="422" rx="10" fill="#0d1117"/>
+<rect width="940" height="36" rx="10" fill="#161b22"/><rect y="30" width="940" height="6" fill="#161b22"/>
 <circle cx="20" cy="18" r="6" fill="#ff5f57"/>
 <circle cx="42" cy="18" r="6" fill="#febc2e"/>
 <circle cx="64" cy="18" r="6" fill="#28c840"/>
-<text x="900" y="23" fill="#8b949e" text-anchor="end" font-size="11">dsh-tradingagents 0.1.0 — npm i -g dsh-tradingagents</text>
+<text x="920" y="23" fill="#8b949e" text-anchor="end" font-size="11">dsh-tradingagents 0.1.0 — npm i -g dsh-tradingagents</text>
 <text x="22" y="58" fill="#3fb950">$ tradingagents demo --guests all --save</text>
 <text x="22" y="102" fill="#f2cc60"># IC-MEMO · DEMO · 2026-11-16</text>
-<text x="22" y="124" fill="#c9d1d9">committee: tradingagents/v1（guests: 巴菲特/芒格/林奇/伍德）</text>
+<text x="22" y="124" fill="#c9d1d9">committee: tradingagents/v1(guests: Buffett/Munger/Lynch/Wood)</text>
 <text x="22" y="146" fill="#c9d1d9">decision: PASS    confidence: 72</text>
-<text x="22" y="168" fill="#484f58">── 客座评辩 · 人格包 dsh-ai-hedge-fund ────────────────────────</text>
-<text x="22" y="190" fill="#d29922">  客座                  立场    信念</text>
-<text x="22" y="212" fill="#3fb950">  沃伦·巴菲特           PASS    72</text>
-<text x="22" y="234" fill="#3fb950">  查理·芒格             PASS    72</text>
-<text x="22" y="256" fill="#3fb950">  彼得·林奇             PASS    62</text>
-<text x="22" y="278" fill="#e3b341">  凯瑟琳·伍德           HOLD    55</text>
-<text x="22" y="300" fill="#484f58">── 组合经理裁决 ────────────────────────────────────────────</text>
-<text x="22" y="322" fill="#a5d6ff">  裁决 PASS（置信度 72）· 客座分裂入裁决 · 风控立 [G8] 分歧记录</text>
-<text x="22" y="366" fill="#8b949e">  55s · 10 次调用 · deepseek-chat · temperature=0 · 非投资建议</text>
+<text x="22" y="168" fill="#484f58">── Guest critiques · persona pack dsh-ai-hedge-fund ────────────────────</text>
+<text x="22" y="190" fill="#d29922">  Guest             Stance  Conviction</text>
+<text x="22" y="212" fill="#3fb950">  Warren Buffett    PASS    72</text>
+<text x="22" y="234" fill="#3fb950">  Charlie Munger    PASS    72</text>
+<text x="22" y="256" fill="#e3b341">  Peter Lynch       HOLD    55</text>
+<text x="22" y="278" fill="#3fb950">  Cathie Wood       BUY     62</text>
+<text x="22" y="300" fill="#484f58">── Portfolio manager verdict ──────────────────────────────────────────</text>
+<text x="22" y="322" fill="#a5d6ff">  Verdict PASS (confidence 72) · 3-way split named · risk logs [G8]</text>
+<text x="22" y="366" fill="#8b949e">  56s · 10 calls · deepseek-chat · temperature=0 · not investment advice</text>
 </svg>

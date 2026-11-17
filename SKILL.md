@@ -1,6 +1,6 @@
 ---
 name: dsh-tradingagents
-description: Multi-agent investment committee (TradingAgents-style) for DeepSeek Harness — analyst/bull/bear/risk/PM debate with evidence tags, PASS as first-class verdict, IC-MEMO auditable output. Runs offline demo or with real data cards.
+description: Multi-agent investment committee (TradingAgents-style) for DeepSeek Harness — analyst/bull/bear/risk/PM debate with evidence tags, PASS as a first-class verdict, IC-MEMO auditable output. Runs offline demo or with real data cards. English-first, --lang zh for Chinese.
 ---
 
 Use this skill when asked to research a ticker, debate an investment idea, or
@@ -11,17 +11,20 @@ you orchestrate, it decides.
 
 ```bash
 python3 $KIT/scripts/tradingagents.py --ticker DEMO                    # offline synthetic smoke
-python3 $KIT/scripts/tradingagents.py --data <card.json> --ticker XXX  # real/curated data card
+python3 $KIT/scripts/tradingagents.py --ticker DEMO --guests all --save  # + 4 guest seats
+python3 $KIT/scripts/fetch_card.py --ticker NVDA --committee           # real data → full committee
 ```
+
+Output language: English by default, `--lang zh` for Chinese (env `TRADINGAGENTS_LANG`).
 
 ## Data discipline (the covenant)
 
 - The committee only sees the data card. **You must not let it invent numbers**:
-  build the card from real sources (yfinance/akshare/manual), every item dated.
+  build the card from real sources, every item dated.
 - Synthetic runs must keep the `_note` marker and DEMO ticker — never present
   synthetic output as real analysis.
-- If data is insufficient for a card, say so and don't run — garbage in, confident
-  garbage out.
+- If data is insufficient for a card, say so and don't run — garbage in,
+  confident garbage out.
 
 ## Verdicts
 
@@ -34,7 +37,7 @@ python3 $KIT/scripts/tradingagents.py --data <card.json> --ticker XXX  # real/cu
 ## Output
 
 Every session emits an IC-MEMO (`templates/IC-MEMO.md` format). When the person
-asks follow-ups, quote tag IDs ([A#]/[B#]/[R#]/[G#]) — the memo is the single
+asks follow-ups, quote tag IDs ([A#]/[B#]/[R#]/[G#]/[P#]) — the memo is the single
 source of truth.
 
 *Not investment advice.*

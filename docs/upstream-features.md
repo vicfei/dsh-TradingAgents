@@ -1,3 +1,4 @@
+<!-- Internal working notes (Chinese) — kept for development reference; user-facing docs are English-first per issue #1 -->
 # 上游 TradingAgents 功能面清单（TauricResearch，2026-11-17 浅克隆实测，接续 upstream-architecture.md）
 
 > 架构解剖见 `upstream-architecture.md`（怎么搭的）；本文回答"能用它做什么"。

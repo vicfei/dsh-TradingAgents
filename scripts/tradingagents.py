@@ -1,56 +1,147 @@
 #!/usr/bin/env python3
-"""dsh-tradingagents v1 — 多智能体投研议院（TradingAgents-style，DSH 原生）编排器
+"""dsh-tradingagents v1 — multi-agent investment committee (TradingAgents-style, DSH-native)
 
-结构致敬 TradingAgents（Tauric Research）与 ai-hedge-fund（virattt），
-差异点：**可审计**——每个主张带证据标签，裁决必须点名动因，输出 IC-MEMO。
+Structure inspired by TradingAgents (Tauric Research) and ai-hedge-fund (virattt);
+the differentiator: **auditable** — every claim carries an evidence tag, every verdict
+names what moved it, output is an IC-MEMO.
 
-管线（6 次基础调用/场，temperature=0；--guests 每位客座 +1 次）：
-  analyst → bull → bear(见多方) → bull 回应(见空方)
-          → [客座席位：大师人格用各自方法论评辩] → risk(只立护栏) → PM(裁决)
+Pipeline (6 base calls per session, temperature=0; each guest seat adds one call):
+  analyst → bull → bear (sees bull) → bull rebuttal (sees bear)
+          → [guest seats: master personas critique the debate] → risk (guardrails only) → PM (verdict)
 
-客座人格包跨接自姊妹仓 dsh-ai-hedge-fund（PERSONAS 定义同步，评辩而非盲估——
-与那边"互不可见独立估值"的差异点：这里人格看完整多空辩论后表态）。
+Guest persona pack cross-linked from the sister repo dsh-ai-hedge-fund (PERSONAS synced;
+they critique the full debate rather than blind-estimate — the divergence from that repo).
 
-用法：
-  python3 scripts/tradingagents.py --ticker DEMO                 # 离线合成数据冒烟
-  python3 scripts/tradingagents.py --data my.json --ticker XXX   # 自备数据卡
-  python3 scripts/tradingagents.py --ticker DEMO --guests all --save   # 全客座开庭（10 次调用）
+Usage:
+  python3 scripts/tradingagents.py --ticker DEMO                       # offline synthetic smoke
+  python3 scripts/tradingagents.py --data my.json --ticker XXX         # bring your own data card
+  python3 scripts/tradingagents.py --ticker DEMO --guests all --save   # full guest seats (10 calls)
+  ... --lang zh                                                         # Chinese output (English is default)
 """
-import argparse, json, os, re, subprocess, sys, time
+import argparse, datetime as dt, json, os, re, subprocess, sys, time
 
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# npm CLI 形态经 TRADINGAGENTS_MEMOS 把纪要落到调用方 cwd（缺省落仓内，开发行为不变）
+# npm CLI form lands memos in the caller's cwd via TRADINGAGENTS_MEMOS (repo default unchanged)
 MEMOS = os.environ.get("TRADINGAGENTS_MEMOS") or os.path.join(KIT, "memos")
 
-# 客座人格包：定义同步自姊妹仓 dsh-ai-hedge-fund scripts/hedge_fund.py 的 PERSONAS
+# Guest persona pack: definitions synced from the sister repo dsh-ai-hedge-fund
+# (scripts/hedge_fund.py PERSONAS) — en/zh discipline pairs.
 GUEST_PERSONAS = {
     "warren_buffett": {
         "zh": "沃伦·巴菲特",
-        "discipline": "只投能力圈内看得懂的业务；找有持久护城河（定价权/转换成本/网络效应）的好生意；用 Owner Earnings 视角估内在价值；只在价格显著低于价值（安全边际）时出手；宁可错过不可做错。",
-        "redflag": "对看不懂的商业模式、高换手行业、需要持续巨额资本开支的生意天然警惕。",
+        "en": "Warren Buffett",
+        "discipline": {
+            "en": "Stay inside your circle of competence; look for durable moats (pricing power, switching costs, network effects); value the business on owner earnings; act only when price is well below value (margin of safety); missing out beats being wrong.",
+            "zh": "只投能力圈内看得懂的业务；找有持久护城河（定价权/转换成本/网络效应）的好生意；用 Owner Earnings 视角估内在价值；只在价格显著低于价值（安全边际）时出手；宁可错过不可做错。",
+        },
+        "redflag": {
+            "en": "Naturally wary of business models you cannot understand, high-churn industries, and businesses that need perpetual heavy capex.",
+            "zh": "对看不懂的商业模式、高换手行业、需要持续巨额资本开支的生意天然警惕。",
+        },
     },
     "charlie_munger": {
         "zh": "查理·芒格",
-        "discipline": "反过来想，总是反过来想：先列出这笔投资会如何死掉（竞争/技术/杠杆/治理），全部排除后才谈收益；用多元思维模型交叉检验；以合理价格买卓越公司，而非以便宜价格买平庸公司；避免愚蠢比寻找聪明更重要。",
-        "redflag": "对会计质量差、管理层言行不一、商业模式复杂到无法证伪的公司直接否决。",
+        "en": "Charlie Munger",
+        "discipline": {
+            "en": "Invert, always invert: first list how this investment dies (competition, technology, leverage, governance) and only after all are excluded talk about returns; cross-check with multiple mental models; buy wonderful companies at fair prices, not fair companies at wonderful prices; avoiding stupidity matters more than finding cleverness.",
+            "zh": "反过来想，总是反过来想：先列出这笔投资会如何死掉（竞争/技术/杠杆/治理），全部排除后才谈收益；用多元思维模型交叉检验；以合理价格买卓越公司，而非以便宜价格买平庸公司；避免愚蠢比寻找聪明更重要。",
+        },
+        "redflag": {
+            "en": "Veto outright on poor accounting quality, management that says one thing and does another, and business models too complex to falsify.",
+            "zh": "对会计质量差、管理层言行不一、商业模式复杂到无法证伪的公司直接否决。",
+        },
     },
     "peter_lynch": {
         "zh": "彼得·林奇",
-        "discipline": "GARP（以合理价格成长）：PEG 视角，成长性与估值匹配；优先能被普通人理解的业务；关注被机构忽视的角落；用基本面驱动（营收/利润增速的可持续性），快轮换慢积累。",
-        "redflag": "对故事宏大但没有盈利路径验证的公司警惕；对增速放缓但估值仍按高增长给的警觉。",
+        "en": "Peter Lynch",
+        "discipline": {
+            "en": "GARP (growth at a reasonable price): a PEG lens, growth matched against valuation; prefer businesses an ordinary person can understand; look in corners institutions ignore; fundamentals-driven (sustainability of revenue and earnings growth); rotate the fast, accumulate the slow.",
+            "zh": "GARP（以合理价格成长）：PEG 视角，成长性与估值匹配；优先能被普通人理解的业务；关注被机构忽视的角落；用基本面驱动（营收/利润增速的可持续性），快轮换慢积累。",
+        },
+        "redflag": {
+            "en": "Wary of grand stories with no validated profit path; wary of slowing growth still priced at high-growth multiples.",
+            "zh": "对故事宏大但没有盈利路径验证的公司警惕；对增速放缓但估值仍按高增长给的警觉。",
+        },
     },
     "cathie_wood": {
         "zh": "凯瑟琳·伍德",
-        "discipline": "聚焦破坏性创新（AI/机器人/基因/能源存储/区块链）的指数级成长赛道；以 5 年视野看 TAM 扩张与单位经济改善；容忍短期波动与不盈利，看重研发投入强度与飞轮证据。",
-        "redflag": "对增长停滞、创新投入收缩、赛道被证伪的标的果断放弃；对传统低增长价值股不感兴趣。",
+        "en": "Cathie Wood",
+        "discipline": {
+            "en": "Focus on disruptive innovation (AI, robotics, genomics, energy storage, blockchain) with exponential growth runways; take a 5-year view of TAM expansion and improving unit economics; tolerate near-term volatility and unprofitability; weigh R&D intensity and flywheel evidence.",
+            "zh": "聚焦破坏性创新（AI/机器人/基因/能源存储/区块链）的指数级成长赛道；以 5 年视野看 TAM 扩张与单位经济改善；容忍短期波动与不盈利，看重研发投入强度与飞轮证据。",
+        },
+        "redflag": {
+            "en": "Walk away decisively when growth stalls, innovation spending shrinks, or the thesis is falsified; uninterested in traditional low-growth value names.",
+            "zh": "对增长停滞、创新投入收缩、赛道被证伪的标的果断放弃；对传统低增长价值股不感兴趣。",
+        },
     },
+}
+
+T = {
+    "sys": {
+        "en": "You play a fixed role in an investment committee. Discipline: use only the given data, never invent numbers; begin every claim with a [B#]/[R#]/[A#]/[G#] tag and cite source tags.",
+        "zh": "你在一场投资委员会中扮演固定角色。纪律：只使用给定数据，禁止编造数字；每个主张以 [B#]/[R#]/[A#]/[G#] 标签开头并引用来源标签。",
+    },
+    "analyst": {
+        "en": "You are the analyst: transcribe the data card into a fact list tagged [A#], one entry per fact, nothing added.",
+        "zh": "你是分析师：把数据卡转写为带 [A#] 标签的事实清单，一条不漏，不添加。",
+    },
+    "bull": {
+        "en": "You are the bull researcher: build the strongest bullish case; every [B#] must cite [A#].",
+        "zh": "你是多方研究员：给出最强看多论证，每条 [B#] 必须引用 [A#]。",
+    },
+    "bear": {
+        "en": "You are the bear researcher: first summarize the bull's points, then rebut each or give independent bear arguments, every item [R#].",
+        "zh": "你是空方研究员：先概括多方论点再逐条反驳或给出独立看空论据，每条 [R#]。",
+    },
+    "rebuttal": {
+        "en": "You are the bull researcher: answer only the bear's strongest attacks, at most 3 items, tagged [B#].",
+        "zh": "你是多方研究员：只回应空方最强攻击，不超过 3 条 [B#]。",
+    },
+    "risk": {
+        "en": "You are the risk officer: you do not decide; you only set guardrails — position caps, invalidation triggers, events that force a re-review, each tagged [G#].",
+        "zh": "你是风控官：不决策，只立护栏——仓位上限、失效触发器、必须重审的事件，每条 [G#]。",
+    },
+    "risk_guests": {"en": "\n\nGuest-seat summary:\n", "zh": "\n\n客座观点摘要：\n"},
+    "pm": {
+        "en": 'You are the portfolio manager: output JSON {"decision":"BUY|HOLD|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"name which [B#]/[R#]/[G#]/guest seats persuaded or constrained you"}. When the evidence is insufficient to rule, you must PASS — abstaining is a legitimate and honorable output.',
+        "zh": '你是组合经理：输出 JSON {"decision":"BUY|HOLD|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"点名哪些 [B#]/[R#]/[G#]/客座说服或约束了你"}。证据不足以裁决时必须 PASS——弃权是合法且体面的输出。',
+    },
+    "pm_guests": {
+        "en": "\n\nGuest critiques (adopt or rebut them, but name them):\n",
+        "zh": "\n\n客座评辩（可采纳可反驳，须点名）：\n",
+    },
+    "guest": {
+        "en": 'You are guest committee member {name}, and you have watched the whole bull-bear debate. Methodology: {discipline} Naturally wary of: {redflag} Judge the debate through your methodology: which side\'s arguments hold up in your framework, which side is being lazy, and one question you would put to each side. Output JSON {{"stance":"BUY|HOLD|SELL|PASS","conviction":0-100,"take":"at most 4 items tagged [P#], each citing [A#]/[B#]/[R#]; the last must start with \'If I were the PM\' and give your action"}}.',
+        "zh": '你是客座委员{name}，旁听了整场多空辩论。方法论：{discipline} 天然警惕：{redflag} 用你的方法论评辩：哪方论点在你的框架下站得住、哪方在偷懒，你还想向双方各提一个问题。输出 JSON {{"stance":"BUY|HOLD|SELL|PASS","conviction":0-100,"take":"不超过4条 [P#]，每条引用 [A#]/[B#]/[R#]；末条以\'若我是PM\'开头给处置"}}。',
+    },
+    "facts": {"en": "Facts:\n", "zh": "事实：\n"},
+    "bull_case": {"en": "\n\nBull case:\n", "zh": "\n\n多方论点：\n"},
+    "bear_case": {"en": "\n\nBear case:\n", "zh": "\n\n空方攻击：\n"},
+    "your_case": {"en": "Your original case:\n", "zh": "你的原论点：\n"},
+    "debate_digest": {"en": "\n\nDebate digest:\n", "zh": "\n\n辩论摘要：\n"},
+    "bull_rebuttal": {"en": "\n\nBull rebuttal:\n", "zh": "\n\n多方回应：\n"},
+    "guardrails": {"en": "\n\nRisk guardrails:\n", "zh": "\n\n风控护栏：\n"},
+    "data_card": {"en": "Data card:\n", "zh": "数据卡：\n"},
+    "h1_analyst": {"en": "## 1 · Analyst notes", "zh": "## 1 · 分析师纪要"},
+    "h1_debate": {"en": "## 2 · Bull-bear debate", "zh": "## 2 · 多空辩论"},
+    "h_bull": {"en": "### Bull", "zh": "### 多方"},
+    "h_bear": {"en": "### Bear", "zh": "### 空方"},
+    "h_rebuttal": {"en": "### Bull rebuttal", "zh": "### 多方回应"},
+    "h_guests": {"en": "## 3 · Guest critiques (persona pack dsh-ai-hedge-fund)", "zh": "## 3 · 客座评辩（人格包 dsh-ai-hedge-fund）"},
+    "th_guest": {"en": "| Guest | Stance | Conviction |", "zh": "| 客座 | 立场 | 信念 |"},
+    "h_risk": {"en": "## {n} · Risk guardrails", "zh": "## {n} · 风控护栏"},
+    "h_pm": {"en": "## {n} · Portfolio manager verdict", "zh": "## {n} · 组合经理裁决"},
+    "verdict_line": {"en": "- Verdict **{d}** (confidence {c})", "zh": "- 裁决 **{d}**（置信度 {c}）"},
+    "guests_label": {"en": "guests", "zh": "guests"},
+    "footer": {"en": "*{t}s · {n} calls · deepseek-chat · temperature=0 · data={f} · not investment advice*", "zh": "*耗时 {t}s · {n} 次调用 · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*"},
 }
 
 
 def llm(role_prompt, user_payload, json_out=False):
     key = subprocess.run(["bash", "-c", 'grep -m1 "^export DEEPSEEK_API_KEY=" ~/.bashrc | cut -d= -f2'],
                          capture_output=True, text=True).stdout.strip().strip('"')
-    sysmsg = f"你在一场投资委员会中扮演固定角色。纪律：只使用给定数据，禁止编造数字；每个主张以 [B#]/[R#]/[A#]/[G#] 标签开头并引用来源标签。{role_prompt}"
+    sysmsg = f"{T['sys'][LANG]}{role_prompt}"
     body = {"model": "deepseek-chat", "temperature": 0,
             "messages": [{"role": "system", "content": sysmsg}, {"role": "user", "content": user_payload}]}
     if json_out:
@@ -61,7 +152,7 @@ def llm(role_prompt, user_payload, json_out=False):
     try:
         return json.loads(r.stdout)["choices"][0]["message"]["content"]
     except Exception:
-        raise SystemExit(f"LLM 调用失败: {r.stdout[:200]}")
+        raise SystemExit(f"LLM call failed: {r.stdout[:200]}")
 
 
 def parse_json(text):
@@ -72,65 +163,60 @@ def parse_json(text):
 
 
 def main():
+    global LANG
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", default="DEMO")
     ap.add_argument("--data", default=os.path.join(KIT, "data", "demo", "DEMO.json"))
     ap.add_argument("--guests", default="",
-                    help=f"客座人格（逗号分隔或 all）：{','.join(GUEST_PERSONAS)}；缺省无客座")
-    ap.add_argument("--save", action="store_true", help="把会议纪要存 memos/")
+                    help=f"guest personas (comma-separated or all): {','.join(GUEST_PERSONAS)}; default none")
+    ap.add_argument("--lang", choices=("en", "zh"), default=os.environ.get("TRADINGAGENTS_LANG") or "en",
+                    help="output language (default en)")
+    ap.add_argument("--save", action="store_true", help="archive the memo under memos/")
     args = ap.parse_args()
+    LANG = args.lang
+    t = lambda k, **kw: T[k][LANG].format(**kw) if kw else T[k][LANG]
+    p = lambda k: GUEST_PERSONAS[k][LANG] if LANG == "zh" else GUEST_PERSONAS[k]["en"]
+
     card = json.load(open(args.data))
     guests = (list(GUEST_PERSONAS) if args.guests == "all"
               else [g.strip() for g in args.guests.split(",") if g.strip() in GUEST_PERSONAS])
     t0 = time.time()
     data = json.dumps(card, ensure_ascii=False, indent=1)
 
-    a = llm("你是分析师：把数据卡转写为带 [A#] 标签的事实清单，一条不漏，不添加。",
-            f"数据卡：\n{data}")
-    bull = llm("你是多方研究员：给出最强看多论证，每条 [B#] 必须引用 [A#]。",
-               f"事实：\n{a}")
-    bear = llm("你是空方研究员：先概括多方论点再逐条反驳或给出独立看空论据，每条 [R#]。",
-               f"事实：\n{a}\n\n多方论点：\n{bull}")
-    reb = llm("你是多方研究员：只回应空方最强攻击，不超过 3 条 [B#]。",
-              f"你的原论点：\n{bull}\n\n空方攻击：\n{bear}")
+    a = llm(t("analyst"), f"{t('data_card')}\n{data}")
+    bull = llm(t("bull"), f"{t('facts')}\n{a}")
+    bear = llm(t("bear"), f"{t('facts')}\n{a}{t('bull_case')}{bull}")
+    reb = llm(t("rebuttal"), f"{t('your_case')}\n{bull}{t('bear_case')}{bear}")
 
     guest_memos = {}
-    debate_ctx = f"事实：\n{a}\n\n多方：\n{bull}\n空方：\n{bear}\n多方回应：\n{reb}"
+    debate_ctx = f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
     for pid in guests:
-        p = GUEST_PERSONAS[pid]
-        g = parse_json(llm(
-            f"你是客座委员{p['zh']}，旁听了整场多空辩论。方法论：{p['discipline']} 天然警惕：{p['redflag']} "
-            f"用你的方法论评辩：哪方论点在你的框架下站得住、哪方在偷懒，你还想向双方各提一个问题。"
-            f"输出 JSON {{\"stance\":\"BUY|HOLD|SELL|PASS\",\"conviction\":0-100,"
-            f"\"take\":\"不超过4条 [P#]，每条引用 [A#]/[B#]/[R#]；末条以'若我是PM'开头给处置\"}}。",
-            debate_ctx, json_out=True))
-        if isinstance(g.get("take"), list):  # 模型偶返回数组——并成段落
-            g["take"] = "\n\n".join(str(x) for x in g["take"])
-        guest_memos[pid] = g
+        g = GUEST_PERSONAS[pid]
+        prompt = t("guest", name=p(pid), discipline=g["discipline"][LANG], redflag=g["redflag"][LANG])
+        out = parse_json(llm(prompt, debate_ctx, json_out=True))
+        if isinstance(out.get("take"), list):  # models sometimes return an array — join into paragraphs
+            out["take"] = "\n\n".join(str(x) for x in out["take"])
+        guest_memos[pid] = out
     guest_digest = "\n".join(
-        f"{GUEST_PERSONAS[k]['zh']}: {v['stance']}@{v['conviction']}" for k, v in guest_memos.items())
+        f"{p(k)}: {v['stance']}@{v['conviction']}" for k, v in guest_memos.items())
 
-    risk = llm("你是风控官：不决策，只立护栏——仓位上限、失效触发器、必须重审的事件，每条 [G#]。",
-               f"事实：\n{a}\n\n辩论摘要：\n{bull}\n{bear}" +
-               (f"\n\n客座观点摘要：\n{guest_digest}" if guest_digest else ""))
-    pm = llm("你是组合经理：输出 JSON {{\"decision\":\"BUY|HOLD|SELL|PASS\",\"confidence\":0-100,"
-             "\"size_hint\":\"..\",\"invalidation\":[..],\"reasoning\":\"点名哪些 [B#]/[R#]/[G#]/客座说服或约束了你\"}}。"
-             "证据不足以裁决时必须 PASS——弃权是合法且体面的输出。",
-             f"事实：\n{a}\n\n多方：\n{bull}\n空方：\n{bear}\n多方回应：\n{reb}"
-             + (f"\n\n客座评辩（可采纳可反驳，须点名）：\n{guest_digest}" if guest_digest else "")
-             + f"\n风控护栏：\n{risk}",
+    risk = llm(t("risk"),
+               f"{t('facts')}\n{a}{t('debate_digest')}\n{bull}\n{bear}"
+               + (t("risk_guests") + guest_digest if guest_digest else ""))
+    pm = llm(t("pm"),
+             f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
+             + (t("pm_guests") + guest_digest if guest_digest else "")
+             + t("guardrails") + risk,
              json_out=True)
 
     verdict = parse_json(pm)
 
     guest_section = ""
     if guest_memos:
-        table = "\n".join(
-            f"| {GUEST_PERSONAS[k]['zh']} | {v['stance']} | {v['conviction']} |" for k, v in guest_memos.items())
-        takes = "\n\n".join(
-            f"### {GUEST_PERSONAS[k]['zh']}\n{v['take']}" for k, v in guest_memos.items())
-        guest_section = f"""## 3 · 客座评辩（人格包 dsh-ai-hedge-fund）
-| 客座 | 立场 | 信念 |
+        table = "\n".join(f"| {p(k)} | {v['stance']} | {v['conviction']} |" for k, v in guest_memos.items())
+        takes = "\n\n".join(f"### {p(k)}\n{v['take']}" for k, v in guest_memos.items())
+        guest_section = f"""{t('h_guests')}
+{t('th_guest')}
 |---|---|---|
 {table}
 
@@ -143,35 +229,35 @@ def main():
 ```yaml
 ticker: {args.ticker}
 as_of: {card.get('as_of', '?')}
-committee: tradingagents/v1{'（guests: ' + ', '.join(GUEST_PERSONAS[k]['zh'] for k in guest_memos) + '）' if guest_memos else ''}
+committee: tradingagents/v1{'(' + t('guests_label') + ': ' + ', '.join(p(k) for k in guest_memos) + ')' if guest_memos else ''}
 decision: {verdict.get('decision')}
 confidence: {verdict.get('confidence')}
 size_hint: {verdict.get('size_hint')}
 invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
 ```
 
-## 1 · 分析师纪要
+{t('h1_analyst')}
 {a}
 
-## 2 · 多空辩论
-### 多方
+{t('h1_debate')}
+{t('h_bull')}
 {bull}
 
-### 空方
+{t('h_bear')}
 {bear}
 
-### 多方回应
+{t('h_rebuttal')}
 {reb}
 
-{guest_section}## {4 if guest_memos else 3} · 风控护栏
+{guest_section}{t('h_risk', n=4 if guest_memos else 3)}
 {risk}
 
-## {5 if guest_memos else 4} · 组合经理裁决
-- 裁决 **{verdict.get('decision')}**（置信度 {verdict.get('confidence')}）
+{t('h_pm', n=5 if guest_memos else 4)}
+{t('verdict_line', d=verdict.get('decision'), c=verdict.get('confidence'))}
 - {verdict.get('reasoning')}
 
 ---
-*耗时 {time.time()-t0:.0f}s · {len(guests) + 6} 次调用 · deepseek-chat · temperature=0 · 数据={os.path.basename(args.data)} · 非投资建议*
+{t('footer', t=int(time.time()-t0), n=len(guests) + 6, f=os.path.basename(args.data))}
 """
     print(memo)
     if args.save:

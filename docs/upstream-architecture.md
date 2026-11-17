@@ -1,3 +1,4 @@
+<!-- Internal working notes (Chinese) — kept for development reference; user-facing docs are English-first per issue #1 -->
 # 上游 TradingAgents 架构解剖（TauricResearch/TradingAgents，Apache-2.0，2026-11-17 浅克隆实测）
 
 > 源码级逆向（~100 个 py 文件，graph/agents/memory/backtest/dataflows/llm_clients/cli）。

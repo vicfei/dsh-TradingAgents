@@ -1,20 +1,20 @@
 # dsh-tradingagents — TradingAgents, natively on DeepSeek Harness
 
 **A multi-agent investment committee that debates in your terminal — every claim tagged, every verdict auditable.**
-**让 TradingAgents 式的多智能体投研议院在你的 DSH 终端里开庭——每个主张带证据标签，每次裁决可审计。**
 
-[![DeepSeek Harness](https://img.shields.io/badge/DSH-plugin-4E6DD4)](https://github.com/deepseek-ai) [![License: MIT](https://img.shields.io/badge/license-MIT-3da639)](LICENSE) [![IC-MEMO](https://img.shields.io/badge/output-IC--MEMO-ff6b35)](templates/IC-MEMO.md) [![ci](https://github.com/vicfei/dsh-TradingAgents/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml)
+[![DeepSeek Harness](https://img.shields.io/badge/DSH-plugin-4E6DD4)](https://github.com/deepseek-ai) [![License: MIT](https://img.shields.io/badge/license-MIT-3da639)](LICENSE) [![IC-MEMO](https://img.shields.io/badge/output-IC--MEMO-ff6b35)](templates/IC-MEMO.md) [![ci](https://github.com/vicfei/dsh-TradingAgents/actions/workflows/ci.yml/badge.svg)](../../actions/workflows/ci.yml) [![npm](https://img.shields.io/npm/v/dsh-tradingagents)](https://www.npmjs.com/package/dsh-tradingagents)
 
 > Inspired by [Tauric Research's TradingAgents](https://github.com/TauricResearch/TradingAgents) and
 > [virattt/ai-hedge-fund](https://github.com/virattt/ai-hedge-fund) — restructured as a
 > native DeepSeek Harness experience. Not affiliated; independent community project.
+> [中文文档](README.zh-CN.md)
 
 ![demo](assets/demo.png)
 
-*A real `tradingagents demo --guests all --save` run (npm 0.1.0, 10 calls · 55s): the four
-guest seats split — Buffett/Munger PASS@72, Lynch PASS@62, Wood HOLD@55 — the risk officer
-logs the split as guardrail [G8], and the PM rules PASS@72 naming it. Replay the full cast:
-`asciinema play assets/demo.cast`*
+*A real `tradingagents demo --guests all --save` run (npm 0.1.0, 10 calls · 56s): the four
+guest seats split three ways — Buffett/Munger PASS@72, Lynch HOLD@55, Wood BUY@62 — the
+risk officer logs the split as guardrail [G8], and the PM rules PASS@72 naming it.
+Replay: `asciinema play assets/demo.cast`*
 
 ## Why this exists
 
@@ -25,12 +25,14 @@ logs the split as guardrail [G8], and the PM rules PASS@72 naming it. Replay the
 | Market data | Yahoo-centric, keys optional | — | **zero-key by default: CBOE quote/K-line/options-IV + SEC 10-K + nasdaq news (OpenBB), Tencent fallback** |
 | Output | text logs | trades table | **[IC-MEMO](templates/IC-MEMO.md)** — open, auditable memo format |
 | Evidence discipline | — | — | **every claim tagged `[A#][B#][R#][G#]`, verdict must name what moved it** |
-| Abstention | — | — | **PASS is a first-class verdict** — “证据不足，拒绝表态” |
+| Abstention | — | — | **PASS is a first-class verdict** — "insufficient evidence, decline to rule" |
 | Risk officer | team output | — | guardrails **only** — constrains, never decides |
 
-The differentiator is **auditability**: analyst → bull → bear (cross-exam) → bull rebuttal →
+The differentiator is **auditability**: analyst → bull → bear → rebuttal →
 risk guardrails → portfolio manager. The PM cannot cite anything untagged, cannot overrule
-risk triggers, and must abstain when evidence is insufficient.
+the guardrails, and cannot dress up thin evidence as conviction. When the data doesn't
+support a call, the committee **abstains with reasons** — and tells you exactly what new
+evidence would reopen the case.
 
 ## Quick start (zero extra keys)
 
@@ -54,6 +56,9 @@ python3 scripts/fetch_card.py --ticker NVDA --committee         # real US data �
 python3 scripts/fetch_card.py --ticker 600519 --committee       # real A-share data → full committee
 ```
 
+Output language is English by default; `--lang zh` switches memos and cards to Chinese
+(env `TRADINGAGENTS_LANG`).
+
 Real data runs on a multi-provider ladder, CN-cloud friendly and **Yahoo-free**:
 **OpenBB rich card (default, `pip install --user openbb`): CBOE quote / K-line /
 options-implied vol + SEC 10-K statements + nasdaq news — all zero-key
@@ -62,11 +67,14 @@ K-line technicals, same engine for US & A-share) → `--via-relay` full yfinance
 through any SSH relay**. Every card item carries its source and as-of date —
 the evidence-tag discipline starts at the data layer.
 
-DEMO verdict from the very first smoke run (2026-11-16, temperature=0):
+DEMO verdict from the very first smoke run (2026-11-16, temperature=0; translated
+from the archived Chinese memo):
 
-> **PASS @ 55** — “弃权而非看多或看空… 空方的时点错配论证（[R1][R2][R4]：营收/毛利率/份额
-> 均早于降价信号 [A7]）说服我偏向谨慎；[A8] 订单金额未披露与 [A9] 估值口径不可复核
-> 是两处硬缺口；证据不足以裁决，按纪律 PASS，待 [G8] 任一重审事件落地后再议。”
+> **PASS @ 55** — "Abstain rather than lean bullish or bearish… the bear's timing-mismatch
+> argument ([R1][R2][R4]: revenue / gross margin / share all predate the price-cut
+> signal [A7]) persuades me toward caution; [A8] undisclosed contract value and
+> [A9] an unverifiable valuation basis are two hard gaps; the evidence does not
+> support a ruling, so by discipline PASS — reopen when any [G8] re-review event lands."
 
 A committee that **abstains with reasons** is the feature.
 
@@ -93,9 +101,10 @@ Unresolved dissent is recorded, never deleted. Spec evolution lives in `docs/`.
 
 ## Status & roadmap
 
-v0 engine smoke-tested (see `memos/`). See [ROADMAP](ROADMAP.md) for the
-launch package (npm plugin + marketplace + real-data adapters: yfinance / akshare)
-and the IC-MEMO standard track.
+v1 engine shipped (npm 0.1.0): 6-role committee + guest seats + OpenBB zero-key rich
+cards + CI. See [ROADMAP](ROADMAP.md) for the launch battle (marketplace + channels),
+the track-record loop (verdict ledger → alpha settlement → reflection → re-injection),
+and the ecosystem track (portfolio committee, typed-tools plugin, IC-MEMO spec).
 
 ## Credits & disclaimer
 
