@@ -30,6 +30,17 @@ LANG = os.environ.get("TRADINGAGENTS_LANG") or "en"
 def tt(en, zh):
     return en if LANG == "en" else zh
 
+# Cost guard (issue #7): every successful call is counted with its tokens; the
+# committee dies cleanly at --max-calls rather than silently overspending.
+COST = {"calls": 0, "in": 0, "out": 0}
+MAX_CALLS = None
+
+
+def take_usage(body):
+    """Extract (prompt_tokens, completion_tokens) from a provider response, 0-safe."""
+    u = (body or {}).get("usage") or {}
+    return int(u.get("prompt_tokens") or 0), int(u.get("completion_tokens") or 0)
+
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # npm CLI form lands memos in the caller's cwd via TRADINGAGENTS_MEMOS (repo default unchanged)
 MEMOS = os.environ.get("TRADINGAGENTS_MEMOS") or os.path.join(KIT, "memos")
@@ -152,11 +163,14 @@ T = {
         "en": "\n\nTrack record — prior settled decisions and lessons (cite them as [T#] where they move you):\n",
         "zh": "\n\n战绩台账——既往已结算判决与教训（若影响你须引用为 [T#]）：\n",
     },
-    "footer": {"en": "*{t}s · {n} calls · deepseek-chat · temperature=0 · data={f} · not investment advice*", "zh": "*耗时 {t}s · {n} 次调用 · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*"},
+    "footer": {"en": "*{t}s · {n} calls · {ti:,} in / {to:,} out tokens · deepseek-chat · temperature=0 · data={f} · not investment advice*",
+               "zh": "*耗时 {t}s · {n} 次调用 · {ti:,} 入 / {to:,} 出 token · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*"},
 }
 
 
 def llm(role_prompt, user_payload, json_out=False):
+    if MAX_CALLS is not None and COST["calls"] >= MAX_CALLS:
+        raise SystemExit(f"cost guard: {MAX_CALLS} LLM calls reached (--max-calls); aborting before call #{COST['calls'] + 1}")
     key = subprocess.run(["bash", "-c", 'grep -m1 "^export DEEPSEEK_API_KEY=" ~/.bashrc | cut -d= -f2'],
                          capture_output=True, text=True).stdout.strip().strip('"')
     sysmsg = f"{T['sys'][LANG]}{role_prompt}"
@@ -168,7 +182,13 @@ def llm(role_prompt, user_payload, json_out=False):
                         "-H", f"Authorization: Bearer {key}", "-H", "Content-Type: application/json",
                         "-d", json.dumps(body)], capture_output=True, text=True)
     try:
-        return json.loads(r.stdout)["choices"][0]["message"]["content"]
+        parsed = json.loads(r.stdout)
+        content = parsed["choices"][0]["message"]["content"]
+        pin, pout = take_usage(parsed)
+        COST["calls"] += 1
+        COST["in"] += pin
+        COST["out"] += pout
+        return content
     except Exception:
         raise SystemExit(f"LLM call failed: {r.stdout[:200]}")
 
@@ -254,7 +274,7 @@ def resolve_verdict(pm_text, lang="en"):
 
 
 def main():
-    global LANG
+    global LANG, MAX_CALLS
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", default="DEMO")
     ap.add_argument("--data", default=os.path.join(KIT, "data", "demo", "DEMO.json"))
@@ -266,9 +286,12 @@ def main():
     ap.add_argument("--portfolio", default=None,
                     help="portfolio JSON ({cash?, currency?, positions:[{ticker,quantity,average_price?}]}) — "
                          "empty positions = flat book; omitting the flag leaves holdings unknown")
+    ap.add_argument("--max-calls", type=int, default=None,
+                    help="cost guard: abort cleanly once this many LLM calls have been made")
     ap.add_argument("--html", action="store_true", help="also render a single-file HTML memo (issue #4)")
     args = ap.parse_args()
     LANG = args.lang
+    MAX_CALLS = args.max_calls
     t = lambda k, **kw: T[k][LANG].format(**kw) if kw else T[k][LANG]
     p = lambda k: GUEST_PERSONAS[k][LANG] if LANG == "zh" else GUEST_PERSONAS[k]["en"]
 
@@ -365,7 +388,7 @@ portfolio: {('flat' if not book['positions'] else f"{len(book['positions'])} pos
 - {verdict.get('reasoning')}{review_banner}
 
 ---
-{t('footer', t=int(time.time()-t0), n=len(guests) + 6, f=os.path.basename(args.data))}
+{t('footer', t=int(time.time()-t0), n=COST["calls"], ti=COST["in"], to=COST["out"], f=os.path.basename(args.data))}
 """
     print(memo)
     if args.save:
