@@ -119,6 +119,10 @@ T = {
         "en": "You are the bull researcher: answer only the bear's strongest attacks, at most 3 items, tagged [B#].",
         "zh": "你是多方研究员：只回应空方最强攻击，不超过 3 条 [B#]。",
     },
+    "bull_respond": {
+        "en": "You are the bull researcher: respond to the bear's latest attack and defend or refine your case, tagged [B#].",
+        "zh": "你是多方研究员：回应空方最新攻击，捍卫或修正你的论证，每条 [B#]。",
+    },
     "risk": {
         "en": "You are the risk officer: you do not decide; you only set guardrails — position caps, invalidation triggers, events that force a re-review, each tagged [G#].",
         "zh": "你是风控官：不决策，只立护栏——仓位上限、失效触发器、必须重审的事件，每条 [G#]。",
@@ -288,6 +292,8 @@ def main():
                          "empty positions = flat book; omitting the flag leaves holdings unknown")
     ap.add_argument("--max-calls", type=int, default=None,
                     help="cost guard: abort cleanly once this many LLM calls have been made")
+    ap.add_argument("--rounds", type=int, default=1,
+                    help="debate rounds: each adds one bear cross-exam + one bull response (default 1 keeps the cost profile)")
     ap.add_argument("--html", action="store_true", help="also render a single-file HTML memo (issue #4)")
     args = ap.parse_args()
     LANG = args.lang
@@ -310,9 +316,21 @@ def main():
     data = json.dumps(card, ensure_ascii=False, indent=1)
 
     a = llm(t("analyst"), f"{t('data_card')}\n{data}")
-    bull = llm(t("bull"), f"{t('facts')}\n{a}")
-    bear = llm(t("bear"), f"{t('facts')}\n{a}{t('bull_case')}{bull}")
-    reb = llm(t("rebuttal"), f"{t('your_case')}\n{bull}{t('bear_case')}{bear}")
+    bull_turns = [llm(t("bull"), f"{t('facts')}\n{a}")]      # opening
+    bear_turns, last_bull = [], bull_turns[0]
+    debate_hist = t("bull_case") + bull_turns[0]
+    for i in range(max(1, args.rounds)):                       # --rounds (issue #8); 1 = original shape
+        bear_i = llm(t("bear"), f"{t('facts')}\n{a}{debate_hist}")
+        bear_turns.append(bear_i)
+        debate_hist += t("bear_case") + bear_i
+        final = i == args.rounds - 1
+        bull_i = llm(t("rebuttal") if final else t("bull_respond"),
+                     f"{t('your_case')}\n{last_bull}{t('bear_case')}{bear_i}")
+        bull_turns.append(bull_i)
+        debate_hist += t("bull_case") + bull_i
+        last_bull = bull_i
+    join = "\n\n---\n\n"
+    bull, bear, reb = join.join(bull_turns[:-1]), join.join(bear_turns), bull_turns[-1]
 
     guest_memos = {}
     debate_ctx = f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
