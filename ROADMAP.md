@@ -120,9 +120,17 @@ issue → branch → PR.
 
 ## R4 · Ecosystem & portfolio committee (12-06 → 12-15) — the two wings of scale
 
-- [ ] **Portfolio committee** (the original M2 headline, upstream has nothing like it):
-      multi-ticker allocation debate + portfolio risk constraints (correlation/drawdown);
-      IC-MEMO portfolio variant (issue #9)
+- [x] **Portfolio committee** (2026-11-17, PR #23): `tradingagents portfolio --tickers ...`
+      — one analyst pass per ticker (tags carry ticker suffixes [A#-TICKER]), one allocation
+      debate (bull proposes weights citing facts, bear challenges, guardrails [G#]: 40%
+      single-name cap overridable only explicitly, concentration limits, a stated-plainly
+      correlation caveat — no correlation data is in evidence, drawdown triggers), PM
+      outputs weights + cash_pct summing to 100 (a wrong total is flagged on the memo,
+      never silently rescaled; a literal Cash key inside weights is normalized).
+      DEPLOY/HOLD/PASS + REVIEW sentinel, same as the base committee. N+5 calls
+      (live: 3 tickers → 8 calls, 42s; the PM walked guardrail compliance per weight and
+      refused to claim diversification without correlation evidence). IC-MEMO portfolio
+      variant documented in the template (issue #9)
 - [ ] cordis typed-tools plugin module (0.2.0): real `dsh plugin add` registration,
       committee exposed as typed tools (issue #10)
 - [ ] Backtest grid: iter_grid/run/summarize over (ticker, date) cells into an isolated

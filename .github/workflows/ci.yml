@@ -121,6 +121,21 @@ jobs:
           assert M.take_usage({"usage": {"prompt_tokens": "7", "completion_tokens": None}}) == (7, 0)
           print("take_usage: PASS")
           EOF3
+      - name: portfolio allocation resolver (pure, no network)
+        run: |
+          python3 - <<'EOF4'
+          import importlib.util, sys
+          sys.path.insert(0, "scripts")
+          spec = importlib.util.spec_from_file_location("pc", "scripts/portfolio_committee.py")
+          PC = importlib.util.module_from_spec(spec); sys.modules["pc"] = PC; spec.loader.exec_module(PC)
+          r = PC.resolve_allocation('{"decision":"deploy","confidence":70,"weights":{"MSFT":30,"NVDA":20,"AAPL":15,"Cash":35},"cash_pct":35}')
+          assert r["decision"] == "DEPLOY" and "Cash" not in r["weights"] and r["cash_pct"] == 35 and "_weight_warning" not in r
+          for bad in ['garbage', '{"decision":"MAYBE"}', '{}']:
+              assert PC.resolve_allocation(bad)["decision"] == "REVIEW"
+          r3 = PC.resolve_allocation('{"decision":"DEPLOY","confidence":60,"weights":{"A":30},"cash_pct":20}')
+          assert "_weight_warning" in r3
+          print("allocation resolver: PASS")
+          EOF4
       - name: data cards schema
         run: |
           python3 - <<'EOF'

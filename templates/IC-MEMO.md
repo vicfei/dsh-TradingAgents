@@ -44,3 +44,22 @@ invalidation: [ <falsifiable re-review triggers> ]
 
 ## 6 · Provenance
 - Model / version / temperature / elapsed time / cost; full round transcripts in the sidecar
+
+---
+## Portfolio variant (v1)
+
+`committee: tradingagents/portfolio-v1` replaces the single-ticker head:
+
+```yaml
+tickers: [ <list> ]
+decision: DEPLOY | HOLD | PASS | REVIEW   # PASS = evidence insufficient to allocate
+weights: { <ticker>: <percent> }
+cash_pct: <percent>                       # weights + cash_pct must sum to 100
+```
+
+Section 2 is the **allocation debate** (bull proposes weights citing [A#-TICKER],
+bear challenges them); section 3 carries portfolio guardrails ([G#]: single-name
+cap, concentration, a stated-plainly correlation caveat when no correlation data
+is in evidence, drawdown triggers). The PM must name the tags that moved each
+weight, and overruling a guardrail must be explicit — a weights+cash total that
+isn't 100% is flagged on the memo, never silently rescaled.
