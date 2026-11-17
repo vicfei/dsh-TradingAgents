@@ -97,8 +97,16 @@ issue → branch → PR.
       quantities rejected; the PM payload gets a holdings block (size_hint must relate
       to the existing position); memo yaml records the state; three-state discipline
       unit-tested in CI (issue #5)
-- [ ] `--date` historical as-of mode: SEC filed-as-of semantics via the sec provider —
-      precondition for the backtest grid (issue #6)
+- [x] `--date` historical as-of mode (2026-11-17, PR #20): OpenBB rich-card path only
+      (US) — bars/technicals/52w truncated at the date, SEC statements cut by period end
+      with an explicit filing-lag caveat (openbb carries no filing dates; stated openly,
+      not faked), live quote/IV/news withheld (no point-in-time source); auto mode
+      refuses the Tencent fallback under as-of (a current card must never pose as
+      historical); parse_as_of rejects bad formats and future dates (CI-tested).
+      Verified live: NVDA 2025-06-15 → FY2025 statements, FY2026 correctly absent,
+      June-2025 close price. A committee run on an as-of card records that decision
+      date — the settle loop then grades it against the real window (backtest
+      primitive) (issue #6)
 - [ ] Cost guard: llm() parses usage, memo footer reports calls/tokens, `--max-calls`
       hard cap (issue #7)
 - [ ] `--rounds N` configurable debate rounds (default 1 keeps the cost profile)

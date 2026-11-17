@@ -48,6 +48,18 @@ def _tech_from_closes(closes, src_label):
     return tech
 
 
+def parse_as_of(s):
+    """--date validator: YYYY-MM-DD, not in the future (a future date has no as-of data)."""
+    import re as _re
+    if not s:
+        return None
+    if not _re.match(r"^\d{4}-\d{2}-\d{2}$", s) or dt.date.fromisoformat(s).isoformat() != s:
+        raise SystemExit(f"--date must be YYYY-MM-DD, got {s!r}")
+    if dt.date.fromisoformat(s) > dt.date.today():
+        raise SystemExit(f"--date cannot be in the future: {s}")
+    return s
+
+
 def _billions(x):
     return f"${x / 1e9:,.1f}B" if x is not None else None
 
@@ -61,20 +73,25 @@ def _num(x):
         return None
 
 
-def fetch_us_openbb(ticker):
+def fetch_us_openbb(ticker, as_of=None):
     """M1 富卡：OpenBB 多 provider —— cboe（报价/K线/IV30）、sec（年报三表）、nasdaq（新闻）。
 
     全零 key、不经雅虎；四块独立降级（K线块为技术面必需，失败则抛错让上层回落腾讯）。
     证据纪律：每条基本面带来源与截至日期，财务一律年报口径并点名报告期。
+    `as_of`（--date）：历史模式——K 线/技术面/52 周按日截断，SEC 三表按报告期截断
+    （openbb 不带申报日期，申报滞后未计入，卡片明示），现价/IV/新闻无时点源，诚实缺席。
     """
     from openbb import obb
 
     providers, fails = {}, []
+    end_date = as_of
 
     # ── 块1 · cboe K 线（必需：技术面 + 52 周） ──
+    anchor = dt.date.fromisoformat(as_of) if as_of else dt.date.today()
     hist = obb.equity.price.historical(
         ticker, provider="cboe",
-        start_date=(dt.date.today() - dt.timedelta(days=400)).isoformat()).to_df()
+        start_date=(anchor - dt.timedelta(days=400)).isoformat(),
+        **({"end_date": end_date} if end_date else {})).to_df()
     if hist.empty:
         raise SystemExit(f"cboe K 线为空：{ticker}")
     providers["historical"] = "cboe"
@@ -84,31 +101,37 @@ def fetch_us_openbb(ticker):
 
     fundamentals = []
 
-    # ── 块2 · cboe 报价（现价 + 盘面 + 隐含波动） ──
+    # ── 块2 · cboe 报价（现价 + 盘面 + 隐含波动；历史模式无时点源，整块缺席） ──
     quote, q_as_of = None, k_as_of
-    try:
-        qdf = obb.equity.price.quote(ticker, provider="cboe").to_df()
-        quote = qdf.iloc[0].to_dict()
-        providers["quote"] = "cboe"
-        q_as_of = str(quote.get("last_timestamp"))[:10] or k_as_of
+    if as_of:
         fundamentals.append(tt(
-            f"Last {quote['last_price']:.2f} USD (intraday {quote['change_percent'] * 100:+.2f}%, "
-            f"bid {quote.get('bid')} / ask {quote.get('ask')}) — Source: CBOE quote (as of {q_as_of})",
-            f"现价 {quote['last_price']:.2f} USD（日内 {quote['change_percent'] * 100:+.2f}%，"
-            f"买一 {quote.get('bid')}/卖一 {quote.get('ask')}） — 来源：CBOE 报价（截至 {q_as_of}）"))
-        if quote.get("iv30") is not None:
-            hv_en = f", 30-day realized {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
-            hv_zh = f"，30 日已实现波动 {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+            f"Last close {closes[-1]:.2f} USD (as of {k_as_of}; requested as-of date {as_of}) — Source: CBOE daily bars",
+            f"最近收盘 {closes[-1]:.2f} USD（截至 {k_as_of}；请求日 {as_of}） — 来源：CBOE 日线"))
+    else:
+        try:
+            qdf = obb.equity.price.quote(ticker, provider="cboe").to_df()
+            quote = qdf.iloc[0].to_dict()
+            providers["quote"] = "cboe"
+            q_as_of = str(quote.get("last_timestamp"))[:10] or k_as_of
             fundamentals.append(tt(
-                f"30-day options-implied volatility {quote['iv30']:.0%}{hv_en} — Source: CBOE IV30/HV30 (as of {q_as_of})",
-                f"30 日期权隐含波动率 {quote['iv30']:.0%}{hv_zh} — 来源：CBOE IV30/HV30（截至 {q_as_of}）"))
-    except Exception as e:
-        fails.append(f"quote:{type(e).__name__}")
-        fundamentals.append(tt(
-            f"Last {closes[-1]:.2f} USD (latest close) — Source: CBOE daily bars (as of {k_as_of})",
-            f"现价 {closes[-1]:.2f} USD（最近收盘） — 来源：CBOE 日线（截至 {k_as_of}）"))
+                f"Last {quote['last_price']:.2f} USD (intraday {quote['change_percent'] * 100:+.2f}%, "
+                f"bid {quote.get('bid')} / ask {quote.get('ask')}) — Source: CBOE quote (as of {q_as_of})",
+                f"现价 {quote['last_price']:.2f} USD（日内 {quote['change_percent'] * 100:+.2f}%，"
+                f"买一 {quote.get('bid')}/卖一 {quote.get('ask')}） — 来源：CBOE 报价（截至 {q_as_of}）"))
+            if quote.get("iv30") is not None:
+                hv_en = f", 30-day realized {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+                hv_zh = f"，30 日已实现波动 {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+                fundamentals.append(tt(
+                    f"30-day options-implied volatility {quote['iv30']:.0%}{hv_en} — Source: CBOE IV30/HV30 (as of {q_as_of})",
+                    f"30 日期权隐含波动率 {quote['iv30']:.0%}{hv_zh} — 来源：CBOE IV30/HV30（截至 {q_as_of}）"))
+        except Exception as e:
+            fails.append(f"quote:{type(e).__name__}")
+            fundamentals.append(tt(
+                f"Last {closes[-1]:.2f} USD (latest close) — Source: CBOE daily bars (as of {k_as_of})",
+                f"现价 {closes[-1]:.2f} USD（最近收盘） — 来源：CBOE 日线（截至 {k_as_of}）"))
     price = round(float(quote["last_price"]), 2) if quote else round(closes[-1], 2)
-    as_of = max(q_as_of, k_as_of)
+    requested = as_of
+    as_of = max(q_as_of, k_as_of) if not requested else requested
 
     # ── 块3 · sec 年报三表（财务证据主块） ──
     try:
@@ -116,6 +139,12 @@ def fetch_us_openbb(ticker):
         bal = obb.equity.fundamental.balance(ticker, provider="sec", period="annual", limit=2).to_df()
         csh = obb.equity.fundamental.cash(ticker, provider="sec", period="annual", limit=2).to_df()
         providers["fundamentals"] = "sec"
+        if requested:  # openbb sec carries no filing dates: period-end cutoff is an approximation
+            by_period = lambda df: df[[str(d)[:10] <= requested for d in df["period_ending"]]]
+            inc, bal, csh = by_period(inc), by_period(bal), by_period(csh)
+            if not len(inc):
+                raise SystemExit(tt(f"no SEC statements with period ending <= {requested}",
+                                    f"没有报告期早于 {requested} 的 SEC 财报"))
         i0 = inc.sort_values("period_ending", ascending=False).iloc[0]
         fy = tt(f"FY{i0['fiscal_year']} (period ending {str(i0['period_ending'])[:10]})",
                 f"FY{i0['fiscal_year']}（报告期 {str(i0['period_ending'])[:10]}）")
@@ -180,31 +209,38 @@ def fetch_us_openbb(ticker):
             fundamentals.append(tt(
                 f"Market cap ≈ {_billions(shares * price)} (fiscal-year weighted diluted shares × last price) — Source: SEC 10-K shares × CBOE price",
                 f"总市值约 {_billions(shares * price)}（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价"))
+        if requested:
+            fundamentals.append(tt(
+                f"SEC statements are cut off by period end <= {requested}; the filing lag (period end → 10-K filed) is NOT accounted — a statement that ended shortly before this date may not have been public yet — Source: approximation, stated openly",
+                f"SEC 财报按报告期 <= {requested} 截断；申报滞后（报告期→10-K 递交）未计入——临近该日期结束的报告期当时可能尚未公开 — 来源：近似口径，明示"))
     except Exception as e:
         fails.append(f"sec:{type(e).__name__}")
         print(f"⚠ SEC 财务块失败（{type(e).__name__}），富卡降级为行情+技术面", file=sys.stderr)
 
-    # ── 块4 · nasdaq 新闻 ──
+    # ── 块4 · nasdaq 新闻（历史模式无时点源，诚实缺席） ──
     news = []
-    try:
-        ndf = obb.news.company(ticker, limit=8).to_df()
-        providers["news"] = "nasdaq"
-        for _, r in ndf.iterrows():
-            syms = str(r.get("symbols") or "")
-            if ticker.split(".")[0].upper() not in syms.upper():
-                continue
-            news.append(f"{r.get('publisher', '?')}：{r.get('title', '')}（{r.get('url', '')}）")
-            if len(news) >= 3:
-                break
-    except Exception as e:
-        fails.append(f"news:{type(e).__name__}")
+    if not requested:
+        try:
+            ndf = obb.news.company(ticker, limit=8).to_df()
+            providers["news"] = "nasdaq"
+            for _, r in ndf.iterrows():
+                syms = str(r.get("symbols") or "")
+                if ticker.split(".")[0].upper() not in syms.upper():
+                    continue
+                news.append(f"{r.get('publisher', '?')}: {r.get('title', '')} ({r.get('url', '')})")
+                if len(news) >= 3:
+                    break
+        except Exception as e:
+            fails.append(f"news:{type(e).__name__}")
 
     card = {"ticker": ticker, "as_of": as_of, "price": price,
             "fundamentals": fundamentals + [tech["range52"]], "news": news, "technicals": tech,
             "_source": "openbb:cboe+sec+nasdaq",
             "_providers": {**providers, "fetched_at": dt.datetime.now().isoformat(timespec="seconds")},
             "_note": tt(f"M1 rich card: CBOE quote/K-line/IV + SEC 10-K statements + nasdaq news, zero-key and Yahoo-free; degraded blocks: {', '.join(fails) if fails else 'none'}",
-                        f"M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；降级块：{', '.join(fails) if fails else '无'}")}
+                        f"M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；降级块：{', '.join(fails) if fails else '无'}")
+                     + (tt(f" · AS-OF {requested}: bars/technicals truncated, SEC statements cut by period end (filing lag not accounted), live quote/IV/news withheld — no point-in-time source",
+                           f" · 历史模式 {requested}：K线/技术面按日截断，SEC 按报告期截断（申报滞后未计入），现价/IV/新闻缺席——无时点源") if requested else "")}
     return card
 
 
@@ -430,11 +466,17 @@ def main():
                     help="auto=OpenBB 富卡失败转腾讯；openbb=强制富卡；tencent=腾讯 Tier2；yfinance=直连雅虎（需干净网络）")
     ap.add_argument("--lang", choices=("en", "zh"), default=LANG,
                     help="card language (default en)")
+    ap.add_argument("--date", default=None,
+                    help="as-of historical date YYYY-MM-DD (<= today): bars/technicals/52w truncated, "
+                         "SEC statements cut by period end, live quote/IV/news withheld (no point-in-time source)")
     args = ap.parse_args()
+    as_of = parse_as_of(args.date)
     LANG = args.lang
     market = args.market
     if market == "auto":
         market = "cn" if args.ticker.isdigit() else "us"
+    if as_of and (market != "us" or args.via_relay or args.tier in ("tencent", "yfinance")):
+        raise SystemExit("--date (as-of) is currently supported on the OpenBB rich-card path (US) only")
     if market == "cn":
         card = fetch_cn_tencent(args.ticker)
         try:  # 东财增强（财务摘要/新闻），被限流时静默跳过
@@ -452,13 +494,16 @@ def main():
     elif args.tier == "yfinance":
         card = fetch_us(args.ticker)
     elif args.tier == "openbb":
-        card = fetch_us_openbb(args.ticker)
-    else:  # auto：OpenBB 富卡优先，整体失败回落腾讯 Tier2
-        try:
-            card = fetch_us_openbb(args.ticker)
-        except (Exception, SystemExit) as e:
-            print(f"⚠ OpenBB 富卡失败（{type(e).__name__ if not isinstance(e, SystemExit) else e}），降级腾讯 Tier2", file=sys.stderr)
-            card = fetch_us_tencent(args.ticker)
+        card = fetch_us_openbb(args.ticker, as_of)
+    else:  # auto：OpenBB 富卡优先，整体失败回落腾讯 Tier2（as-of 模式除外——回落会给出现在时卡片冒充历史）
+        if as_of:
+            card = fetch_us_openbb(args.ticker, as_of)
+        else:
+            try:
+                card = fetch_us_openbb(args.ticker)
+            except (Exception, SystemExit) as e:
+                print(f"⚠ OpenBB 富卡失败（{type(e).__name__ if not isinstance(e, SystemExit) else e}），降级腾讯 Tier2", file=sys.stderr)
+                card = fetch_us_tencent(args.ticker)
     validate(card)
     if args.out:
         out = args.out
