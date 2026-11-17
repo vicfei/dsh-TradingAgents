@@ -168,6 +168,8 @@ jobs:
           EOF
       - name: npm bundle packs clean
         run: cd npm && npm pack --dry-run && rm -f *.tgz
+      - name: bin entry syntax (node --check)
+        run: node --check npm/bin/tradingagents.js
       # LLM 真开庭冒烟走 manual dispatch（6 调用/次，须配 DEEPSEEK_API_KEY secret）
       - name: committee smoke (needs secret, dispatch only)
         if: github.event_name == 'workflow_dispatch' && env.DEEPSEEK_API_KEY != ''
