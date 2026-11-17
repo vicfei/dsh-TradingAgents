@@ -56,24 +56,13 @@ jobs:
           import importlib.util, re
           spec = importlib.util.spec_from_file_location("rh", "scripts/render_html.py")
           R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
-          md = """# IC-MEMO · X · 2026-01-01
-
-```yaml
-ticker: X
-decision: PASS
-```
-
-## 1 · Analyst notes
-- [A1] fact one
-
-## 2 · Guest critiques
-| Guest | Stance | Conviction |
-|---|---|---|
-| Warren Buffett | PASS | 72 |
-
----
-*footer · not investment advice*
-"""
+          md = "\n".join([
+              "# IC-MEMO · X · 2026-01-01", "",
+              "```yaml", "ticker: X", "decision: PASS", "```", "",
+              "## 1 · Analyst notes", "- [A1] fact one", "",
+              "## 2 · Guest critiques",
+              "| Guest | Stance | Conviction |", "|---|---|---|", "| Warren Buffett | PASS | 72 |", "",
+              "---", "*footer · not investment advice*"])
           h = R.render(md)
           for needle in ("<nav>", 'pre class="yaml"', "<table>", "<h2 id="):
               assert needle in h, needle
