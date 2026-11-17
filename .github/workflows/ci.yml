@@ -109,6 +109,18 @@ jobs:
                   pass
           print("as-of parser: PASS")
           EOF2
+      - name: cost-guard usage parser (pure, no network)
+        run: |
+          python3 - <<'EOF3'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("ta", "scripts/tradingagents.py")
+          M = importlib.util.module_from_spec(spec); spec.loader.exec_module(M)
+          assert M.take_usage({}) == (0, 0)
+          assert M.take_usage(None) == (0, 0)
+          assert M.take_usage({"usage": {"prompt_tokens": 100, "completion_tokens": 50}}) == (100, 50)
+          assert M.take_usage({"usage": {"prompt_tokens": "7", "completion_tokens": None}}) == (7, 0)
+          print("take_usage: PASS")
+          EOF3
       - name: data cards schema
         run: |
           python3 - <<'EOF'

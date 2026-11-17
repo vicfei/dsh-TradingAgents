@@ -17,6 +17,7 @@ python3 $KIT/scripts/ledger.py --settle                                # settle 
 python3 $KIT/scripts/render_html.py memos/<memo>.md                    # single-file HTML memo
 python3 $KIT/scripts/tradingagents.py --ticker X --data c.json --portfolio book.json  # holdings-aware verdict
 python3 $KIT/scripts/fetch_card.py --ticker NVDA --date 2025-06-15             # as-of historical card (SEC cut by period end)
+# cost guard: every memo footer reports calls + tokens; --max-calls N aborts cleanly at the cap
 ```
 
 ## Track record (issue #2 loop)

@@ -107,8 +107,11 @@ issue → branch → PR.
       June-2025 close price. A committee run on an as-of card records that decision
       date — the settle loop then grades it against the real window (backtest
       primitive) (issue #6)
-- [ ] Cost guard: llm() parses usage, memo footer reports calls/tokens, `--max-calls`
-      hard cap (issue #7)
+- [x] Cost guard (2026-11-17, PR #21): llm() accumulates real provider usage — every
+      memo footer reports calls + in/out tokens (verified live: 6 calls · 12,360 in /
+      5,167 out); `--max-calls N` aborts cleanly before the (N+1)-th call with an
+      explicit message (verified trip at 2); take_usage parser unit-tested in CI
+      (issue #7)
 - [ ] `--rounds N` configurable debate rounds (default 1 keeps the cost profile)
       (issue #8)
 
