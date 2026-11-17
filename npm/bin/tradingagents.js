@@ -20,7 +20,7 @@ if (cmd === "card") {
   script = "portfolio_committee.py";
   pass = rest;              // tradingagents portfolio --tickers NVDA,AAPL,MSFT --save
 } else if (cmd === "backtest") {
-  script = "backtest.py";       # tradingagents backtest --tickers AAPL --start ... --end ... --report
+  script = "backtest.py";       // tradingagents backtest --tickers AAPL --start ... --end ... --report
   pass = rest;
 } else if (cmd === "settle") {
   script = "ledger.py";        // track-record loop: index memos, settle due entries
