@@ -67,7 +67,7 @@ def index(rebuild=False):
     """(Re)index archived memos into pending entries; idempotent per (ticker, date)."""
     ledger = {"entries": []} if rebuild else load()
     known = {(e["ticker"], e["date"]) for e in ledger["entries"]}
-    for p in sorted(os.listdir(MEMOS)):
+    for p in (sorted(os.listdir(MEMOS)) if os.path.isdir(MEMOS) else []):  # fresh cwd: no memos yet
         if not p.endswith(".md") or p == "ledger.json":
             continue
         h = memo_head(os.path.join(MEMOS, p))
