@@ -93,6 +93,22 @@ jobs:
               pass
           print("portfolio three-state: PASS")
           EOF
+      - name: as-of date parser discipline (pure, no network)
+        run: |
+          python3 - <<'EOF2'
+          import importlib.util, datetime as dt
+          spec = importlib.util.spec_from_file_location("fc", "scripts/fetch_card.py")
+          M = importlib.util.module_from_spec(spec); spec.loader.exec_module(M)
+          assert M.parse_as_of(None) is None
+          assert M.parse_as_of("2026-11-01") == "2026-11-01"
+          today = dt.date.today()
+          for bad in ["2026-1-1", "not-a-date", (today + dt.timedelta(days=1)).isoformat()]:
+              try:
+                  M.parse_as_of(bad); assert False, bad
+              except SystemExit:
+                  pass
+          print("as-of parser: PASS")
+          EOF2
       - name: data cards schema
         run: |
           python3 - <<'EOF'
