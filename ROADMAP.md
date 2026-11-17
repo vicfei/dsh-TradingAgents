@@ -59,17 +59,20 @@ issue → branch → PR.
 > code (Apache-2.0 clean-room). Our edge: the CBOE channel never gets Yahoo-throttled,
 > and IC-MEMO is already the verdict archive format. Issues #2 #3.
 
-- [ ] Verdict ledger: `[date|ticker|decision|confidence|pending]` index over IC-MEMO
-      archives (append-only + idempotent, one entry per ticker per day)
-- [ ] Settlement: after the holding window (default 5 trading days) trades out → entry
-      at the first close after decision date → raw return + **alpha vs benchmark**
-      (map: US→SPY, A-share→000001.SS/399001.SZ; via the CBOE channel) → ledger
-      pending→resolved (with resolution_date point-in-time discipline)
-- [ ] Reflection: one quick-LLM call, 2-4 sentence lesson (window boundary stated:
-      "a thesis written for months is not disproved by a week")
-- [ ] Re-injection: next session's PM payload carries same-ticker history +
-      cross-ticker lessons (only the PM reads them)
-- [ ] `tradingagents settle` standalone subcommand (scheduled settlement)
+- [x] Verdict ledger (2026-11-17): `scripts/ledger.py` — `[date|ticker|decision|confidence|pending]`
+      over IC-MEMO archives (append-only + idempotent per ticker+day; --save auto-appends;
+      synthetic DEMO entries recorded but never settled)
+- [x] Settlement (2026-11-17): entry at the first close after the decision date, exit
+      `holding` sessions later (default 5, env `TRADINGAGENTS_HOLDING_DAYS`), raw return +
+      **alpha vs benchmark** asof-both-ends (US→SPY via CBOE, A-share→000001.SS via
+      Tencent fqkline); never scores the live bar; unresolved windows stay pending;
+      resolution_date recorded. Live-verified both markets (NVDA -2.87% vs SPY, 600519
+      +2.46% vs SSE on backdated test entries; math unit-tested in CI)
+- [x] Reflection (2026-11-17): one quick-LLM call, 2-4 sentences, window boundary stated
+- [x] Re-injection (2026-11-17): PM payload carries same-ticker outcomes + cross-ticker
+      lessons ([T#] citations) — only the PM reads them
+- [x] `tradingagents settle` subcommand (2026-11-17): indexes memos then settles due
+      entries (npm CLI; engine: `python3 scripts/ledger.py --settle`)
 - [ ] Verdict dual exit: unparseable JSON → REVIEW (not tradeable, rerun) ≠ PASS
       (insufficient evidence); add Overweight/Underweight tiers (PASS stays first-class)
 - [ ] Content ammunition: first critical review post ("the committee's first track

@@ -16,6 +16,9 @@ let script, pass;
 if (cmd === "card") {
   script = "fetch_card.py";
   pass = rest;
+} else if (cmd === "settle") {
+  script = "ledger.py";        // track-record loop: index memos, settle due entries
+  pass = ["--index", "--settle", ...rest];
 } else if (cmd === "demo") {
   script = "tradingagents.py";
   pass = ["--ticker", "DEMO", ...rest];
@@ -29,6 +32,7 @@ const env = {
   ...process.env,
   TRADINGAGENTS_MEMOS: path.join(process.cwd(), "memos"),
   TRADINGAGENTS_CARDS: path.join(process.cwd(), "cards"),
+  TRADINGAGENTS_LEDGER: path.join(process.cwd(), "memos", "ledger.json"),
 };
 
 const r = spawnSync("python3", [path.join(root, "scripts", script), ...pass], {

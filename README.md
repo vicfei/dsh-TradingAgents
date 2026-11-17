@@ -101,10 +101,14 @@ Unresolved dissent is recorded, never deleted. Spec evolution lives in `docs/`.
 
 ## Status & roadmap
 
-v1 engine shipped (npm 0.1.0): 6-role committee + guest seats + OpenBB zero-key rich
-cards + CI. See [ROADMAP](ROADMAP.md) for the launch battle (marketplace + channels),
-the track-record loop (verdict ledger → alpha settlement → reflection → re-injection),
-and the ecosystem track (portfolio committee, typed-tools plugin, IC-MEMO spec).
+v1 engine shipped (npm 0.1.1, English-first): 6-role committee + guest seats + OpenBB
+zero-key rich cards + CI. The **track-record loop** is live: every archived verdict
+becomes a pending ledger entry; once its 5-trading-day window trades out it settles with
+raw return and alpha vs the market benchmark (SPY / SSE Composite), a short reflection
+is written, and the next committee session reads the lessons before ruling
+(`tradingagents settle`). See [ROADMAP](ROADMAP.md) for the launch battle (marketplace +
+channels), the verdict dual-exit work, and the ecosystem track (portfolio committee,
+typed-tools plugin, IC-MEMO spec).
 
 ## Credits & disclaimer
 
