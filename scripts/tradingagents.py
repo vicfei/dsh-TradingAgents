@@ -20,6 +20,12 @@ Usage:
 """
 import argparse, datetime as dt, json, os, re, subprocess, sys, time
 
+# Verdict vocabulary (issue #3): five tradeable tiers + PASS (insufficient evidence,
+# first-class) + REVIEW (the PM's output could not be read — NOT a verdict, rerun
+# required; never recorded as PASS or a tier).
+RATINGS = ("BUY", "OVERWEIGHT", "HOLD", "UNDERWEIGHT", "SELL")
+VERDICTS = RATINGS + ("PASS", "REVIEW")
+
 KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # npm CLI form lands memos in the caller's cwd via TRADINGAGENTS_MEMOS (repo default unchanged)
 MEMOS = os.environ.get("TRADINGAGENTS_MEMOS") or os.path.join(KIT, "memos")
@@ -104,16 +110,16 @@ T = {
     },
     "risk_guests": {"en": "\n\nGuest-seat summary:\n", "zh": "\n\n客座观点摘要：\n"},
     "pm": {
-        "en": 'You are the portfolio manager: output JSON {"decision":"BUY|HOLD|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"name which [B#]/[R#]/[G#]/guest seats persuaded or constrained you"}. When the evidence is insufficient to rule, you must PASS — abstaining is a legitimate and honorable output.',
-        "zh": '你是组合经理：输出 JSON {"decision":"BUY|HOLD|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"点名哪些 [B#]/[R#]/[G#]/客座说服或约束了你"}。证据不足以裁决时必须 PASS——弃权是合法且体面的输出。',
+        "en": 'You are the portfolio manager: output JSON {"decision":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"name which [B#]/[R#]/[G#]/[T#]/guest seats persuaded or constrained you"}. The five tiers: BUY = strong conviction to enter or add; OVERWEIGHT = favorable, gradually increase exposure; HOLD = maintain, no action; UNDERWEIGHT = reduce exposure, take partial profits; SELL = exit or avoid. Conflict between the sides is not itself a reason for HOLD — weigh the cases and commit to the stronger one, sized by how decisively it wins. When the evidence is insufficient to rule, you must PASS — abstaining is a legitimate and honorable output; do not manufacture a direction to look decisive.',
+        "zh": '你是组合经理：输出 JSON {"decision":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"点名哪些 [B#]/[R#]/[G#]/[T#]/客座说服或约束了你"}。五档：BUY=强确信建仓或加仓；OVERWEIGHT=偏多逐步加仓；HOLD=维持不动；UNDERWEIGHT=减仓部分止盈；SELL=清仓或回避。多空冲突本身不是 HOLD 的理由——权衡后站更强一方，按胜出幅度定力度。证据不足以裁决时必须 PASS——弃权是合法且体面的输出，不要为显得果断硬造方向。',
     },
     "pm_guests": {
         "en": "\n\nGuest critiques (adopt or rebut them, but name them):\n",
         "zh": "\n\n客座评辩（可采纳可反驳，须点名）：\n",
     },
     "guest": {
-        "en": 'You are guest committee member {name}, and you have watched the whole bull-bear debate. Methodology: {discipline} Naturally wary of: {redflag} Judge the debate through your methodology: which side\'s arguments hold up in your framework, which side is being lazy, and one question you would put to each side. Output JSON {{"stance":"BUY|HOLD|SELL|PASS","conviction":0-100,"take":"at most 4 items tagged [P#], each citing [A#]/[B#]/[R#]; the last must start with \'If I were the PM\' and give your action"}}.',
-        "zh": '你是客座委员{name}，旁听了整场多空辩论。方法论：{discipline} 天然警惕：{redflag} 用你的方法论评辩：哪方论点在你的框架下站得住、哪方在偷懒，你还想向双方各提一个问题。输出 JSON {{"stance":"BUY|HOLD|SELL|PASS","conviction":0-100,"take":"不超过4条 [P#]，每条引用 [A#]/[B#]/[R#]；末条以\'若我是PM\'开头给处置"}}。',
+        "en": 'You are guest committee member {name}, and you have watched the whole bull-bear debate. Methodology: {discipline} Naturally wary of: {redflag} Judge the debate through your methodology: which side\'s arguments hold up in your framework, which side is being lazy, and one question you would put to each side. Output JSON {{"stance":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","conviction":0-100,"take":"at most 4 items tagged [P#], each citing [A#]/[B#]/[R#]; the last must start with \'If I were the PM\' and give your action"}}.',
+        "zh": '你是客座委员{name}，旁听了整场多空辩论。方法论：{discipline} 天然警惕：{redflag} 用你的方法论评辩：哪方论点在你的框架下站得住、哪方在偷懒，你还想向双方各提一个问题。输出 JSON {{"stance":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","conviction":0-100,"take":"不超过4条 [P#]，每条引用 [A#]/[B#]/[R#]；末条以\'若我是PM\'开头给处置"}}。',
     },
     "facts": {"en": "Facts:\n", "zh": "事实：\n"},
     "bull_case": {"en": "\n\nBull case:\n", "zh": "\n\n多方论点：\n"},
@@ -133,6 +139,10 @@ T = {
     "h_risk": {"en": "## {n} · Risk guardrails", "zh": "## {n} · 风控护栏"},
     "h_pm": {"en": "## {n} · Portfolio manager verdict", "zh": "## {n} · 组合经理裁决"},
     "verdict_line": {"en": "- Verdict **{d}** (confidence {c})", "zh": "- 裁决 **{d}**（置信度 {c}）"},
+    "review_note": {
+        "en": "- **REVIEW**: the PM's output could not be parsed into a decision. This is not a verdict, is not tradeable, and must not be recorded as PASS or a tier — rerun the session (possibly with fresh data) instead.",
+        "zh": "- **REVIEW**：组合经理输出无法解析为裁决。这不是判决、不可交易、不得记为 PASS 或任一档位——请重跑本场（必要时换新数据）。",
+    },
     "guests_label": {"en": "guests", "zh": "guests"},
     "track_record": {
         "en": "\n\nTrack record — prior settled decisions and lessons (cite them as [T#] where they move you):\n",
@@ -164,6 +174,29 @@ def parse_json(text):
         return json.loads(text)
     except json.JSONDecodeError:
         return json.loads(re.sub(r"^```(json)?|```$", "", text.strip(), flags=re.M).strip())
+
+
+def resolve_verdict(pm_text, lang="en"):
+    """Parse the PM's output into a verdict (issue #3 dual exit).
+
+    A readable decision (any of the five tiers, PASS) is normalized to upper case.
+    Anything unreadable — malformed JSON, a missing decision field, or a decision
+    outside the vocabulary — becomes the REVIEW sentinel: not a verdict, not
+    tradeable, never silently degraded to PASS or a tier.
+    """
+    review = {"decision": "REVIEW", "confidence": None, "size_hint": None,
+              "invalidation": [], "_unparsed_head": pm_text[:200]}
+    try:
+        v = parse_json(pm_text)
+    except Exception:
+        return review
+    if not isinstance(v, dict):
+        return review
+    d = str(v.get("decision", "")).strip().upper()
+    if d not in VERDICTS or d == "REVIEW":
+        return review
+    v["decision"] = d
+    return v
 
 
 def main():
@@ -220,7 +253,9 @@ def main():
              + t("guardrails") + risk,
              json_out=True)
 
-    verdict = parse_json(pm)
+    verdict = resolve_verdict(pm, LANG)
+
+    review_banner = ("\n" + t("review_note")) if verdict.get("decision") == "REVIEW" else ""
 
     guest_section = ""
     if guest_memos:
@@ -264,8 +299,8 @@ invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
 {risk}
 
 {t('h_pm', n=5 if guest_memos else 4)}
-{t('verdict_line', d=verdict.get('decision'), c=verdict.get('confidence'))}
-- {verdict.get('reasoning')}
+{t('verdict_line', d=verdict.get('decision'), c=verdict.get('confidence') if verdict.get('confidence') is not None else '?')}
+- {verdict.get('reasoning')}{review_banner}
 
 ---
 {t('footer', t=int(time.time()-t0), n=len(guests) + 6, f=os.path.basename(args.data))}

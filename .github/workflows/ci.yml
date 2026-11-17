@@ -33,6 +33,23 @@ jobs:
           assert L.settle_return(stock, bench, "2026-10-20", holding=5, today="2026-10-28") is None  # live bar
           print("settlement discipline: PASS")
           EOF
+      - name: verdict dual-exit discipline (pure, no network)
+        run: |
+          python3 - <<'EOF'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("ta", "scripts/tradingagents.py")
+          M = importlib.util.module_from_spec(spec); spec.loader.exec_module(M)
+          ok = lambda s: M.resolve_verdict(s)["decision"]
+          assert ok('{"decision":"buy","confidence":80}') == "BUY"            # normalized
+          assert ok('```json\n{"decision":"Overweight","confidence":61}\n```') == "OVERWEIGHT"
+          assert ok('{"decision":"PASS","confidence":50}') == "PASS"           # first-class stays
+          assert ok('{"decision":"MAYBE","confidence":50}') == "REVIEW"        # outside vocabulary
+          assert ok('{"confidence":50}') == "REVIEW"                           # missing decision
+          assert ok('not json at all') == "REVIEW"                             # unparseable
+          v = M.resolve_verdict('{"decision":"BUY","confidence":80,"reasoning":"x"}')
+          assert v["confidence"] == 80 and v["reasoning"] == "x"               # payload preserved
+          print("verdict dual-exit: PASS")
+          EOF
       - name: data cards schema
         run: |
           python3 - <<'EOF'

@@ -25,7 +25,7 @@ Replay: `asciinema play assets/demo.cast`*
 | Market data | Yahoo-centric, keys optional | — | **zero-key by default: CBOE quote/K-line/options-IV + SEC 10-K + nasdaq news (OpenBB), Tencent fallback** |
 | Output | text logs | trades table | **[IC-MEMO](templates/IC-MEMO.md)** — open, auditable memo format |
 | Evidence discipline | — | — | **every claim tagged `[A#][B#][R#][G#]`, verdict must name what moved it** |
-| Abstention | — | — | **PASS is a first-class verdict** — "insufficient evidence, decline to rule" |
+| Abstention | — | — | **PASS is a first-class verdict** — "insufficient evidence, decline to rule"; an unparseable verdict surfaces as REVIEW, never silently a Hold |
 | Risk officer | team output | — | guardrails **only** — constrains, never decides |
 
 The differentiator is **auditability**: analyst → bull → bear → rebuttal →

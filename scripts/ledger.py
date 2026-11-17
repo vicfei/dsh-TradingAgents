@@ -74,6 +74,7 @@ def index(rebuild=False):
         if not h or (h["ticker"], h["date"]) in known:
             continue
         h.update({"pending": True, "synthetic": h["ticker"] == "DEMO",
+                  "review": h["decision"].upper() == "REVIEW",  # not a verdict — kept on record, never settled
                   "added_at": dt.datetime.now().isoformat(timespec="seconds")})
         ledger["entries"].append(h)
         known.add((h["ticker"], h["date"]))
@@ -174,7 +175,7 @@ def settle(only=None):
     ledger = load()
     settled, skipped = [], []
     for e in ledger["entries"]:
-        if not e.get("pending") or e.get("synthetic"):
+        if not e.get("pending") or e.get("synthetic") or e.get("review"):
             continue
         if only and e["ticker"] != only:
             continue
@@ -207,7 +208,8 @@ def settle(only=None):
 
 def context_block(ticker, limit=5):
     """The PM's track-record payload: same-ticker outcomes first, then cross-ticker lessons."""
-    entries = [e for e in load()["entries"] if not e.get("pending") and not e.get("synthetic")]
+    entries = [e for e in load()["entries"]
+               if not e.get("pending") and not e.get("synthetic") and not e.get("review")]
     if not entries:
         return ""
     same = [e for e in entries if e["ticker"] == ticker][-limit:]
