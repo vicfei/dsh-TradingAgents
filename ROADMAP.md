@@ -38,7 +38,10 @@
 - [x] 富数据卡（2026-11-17）：OpenBB 多 provider —— CBOE 报价/K线/IV30 + SEC 10-K 三表 +
       nasdaq 新闻，全零 Key 且不经雅虎（yfinance 全局限流痛点绕开）；四块独立降级、
       NaN 哨兵防泄漏；NVDA 开庭 PASS@72（IV30/HV30 与证据错配稽核入裁决）、AAPL 全绿
-- [ ] 人格包跨接：ai-hedge-fund 客座席位
+- [x] 人格包跨接（2026-11-17）：ai-hedge-fund 四大师（巴菲特/芒格/林奇/伍德）作客座席位，
+      `--guests` 评辩而非盲估（差异点：看完整多空辩论后用各家方法论裁决式点评）；
+      DEMO 全客座实测 10 调用 39s——人格真实分裂（PASS@72 vs HOLD@55），风控官为分歧
+      立 [G8] 条款，PM 点名客座分裂入裁决；PERSONAS 定义内嵌并标注同步来源（bundle 自包含）
 - [ ] npm 0.1.0 skill bundle（按 docs/plugin-spec.md jevcore-dsh 模板）：
       `dsh plugin add dsh-tradingagents` 一行装，委员会作为 typed tools 暴露
 - [ ] super-agent 分发接入（@vicfei/dsh-super-agent 可装形态）

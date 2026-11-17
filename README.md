@@ -29,6 +29,7 @@ risk triggers, and must abstain when evidence is insufficient.
 ```bash
 git clone https://github.com/vicfei/dsh-TradingAgents && cd dsh-tradingagents
 python3 scripts/tradingagents.py --ticker DEMO                  # offline synthetic smoke, ~30s
+python3 scripts/tradingagents.py --ticker DEMO --guests all --save   # + 4 guest seats, ~40s
 python3 scripts/fetch_card.py --ticker NVDA --committee         # real US data → full committee
 python3 scripts/fetch_card.py --ticker 600519 --committee       # real A-share data → full committee
 ```
@@ -52,11 +53,16 @@ A committee that **abstains with reasons** is the feature.
 ## The committee
 
 ```
-analyst ──► bull ──► bear (cross-exam) ──► bull rebuttal ──► risk (guardrails only)
-                                                                     │
-                                                        portfolio manager ──► IC-MEMO
-                                                        (BUY/HOLD/SELL/PASS + confidence
-                                                         + invalidation triggers)
+analyst ──► bull ──► bear (cross-exam) ──► bull rebuttal
+                                               │
+                 ┌─ optional guest seats ──────┤   Buffett / Munger / Lynch / Wood
+                 │  (persona pack cross-linked │   from sister repo dsh-ai-hedge-fund;
+                 │   each critiques the debate │   they judge the bull-bear clash
+                 └────────── through their own methodology)
+                                               ▼
+                        risk (guardrails only) ──► portfolio manager ──► IC-MEMO
+                                                   (BUY/HOLD/SELL/PASS + confidence
+                                                    + invalidation triggers)
 ```
 
 ## IC-MEMO — an open format
