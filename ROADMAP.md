@@ -32,6 +32,9 @@ issue → branch → PR.
 
 - [x] **npm 0.1.0 published** (owner OTP 2026-11-17) → registry latest=0.1.0; fresh
       `npm i -g` → `tradingagents demo` 31s full committee smoke
+- [x] npm 0.1.1 (English engine) and **0.1.2** (R2: verdict ledger + six-value
+      vocabulary) published same day; 0.1.2 fresh-install smoke caught the
+      settle-in-fresh-cwd crash, fixed in PR #15 (rides in 0.1.3)
 - [x] Demo assets (2026-11-17): assets/demo.png terminal card (real 0.1.0 run data;
       visually accepted) on the README first screen + assets/demo.cast replayable;
       asciinema.org anonymous uploads are dead (302 login), animated version needs an
