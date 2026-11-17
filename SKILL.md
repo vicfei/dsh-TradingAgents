@@ -19,6 +19,7 @@ python3 $KIT/scripts/tradingagents.py --ticker X --data c.json --portfolio book.
 python3 $KIT/scripts/fetch_card.py --ticker NVDA --date 2025-06-15             # as-of historical card (SEC cut by period end)
 # cost guard: every memo footer reports calls + tokens; --max-calls N aborts cleanly at the cap
 # --rounds N adds N-1 extra bear/bull exchanges (default 1 keeps the cost profile)
+tradingagents portfolio --tickers NVDA,AAPL,MSFT --save             # multi-ticker allocation debate
 ```
 
 ## Track record (issue #2 loop)

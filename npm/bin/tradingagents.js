@@ -16,6 +16,9 @@ let script, pass;
 if (cmd === "card") {
   script = "fetch_card.py";
   pass = rest;
+} else if (cmd === "portfolio") {
+  script = "portfolio_committee.py";
+  pass = rest;              // tradingagents portfolio --tickers NVDA,AAPL,MSFT --save
 } else if (cmd === "settle") {
   script = "ledger.py";        // track-record loop: index memos, settle due entries
   pass = ["--index", "--settle", ...rest];

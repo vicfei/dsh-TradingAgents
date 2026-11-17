@@ -1,0 +1,40 @@
+{
+ "ticker": "MSFT",
+ "as_of": "2026-11-16",
+ "price": 519.14,
+ "fundamentals": [
+  "Last 519.14 USD (intraday -1.12%, bid 519.0 / ask 519.31) — Source: CBOE quote (as of 2026-11-16)",
+  "30-day options-implied volatility 31% — Source: CBOE IV30/HV30 (as of 2026-11-16)",
+  "FY2026 (period ending 2026-06-30) revenue $331.8B (prior $281.7B, YoY +17.8%) — Source: SEC 10-K · FY2026 (period ending 2026-06-30)",
+  "FY2026 (period ending 2026-06-30) net income $133.7B (net margin 40.3%) — Source: SEC 10-K · FY2026 (period ending 2026-06-30)",
+  "FY2026 (period ending 2026-06-30) gross margin 67.9% (gross profit $225.5B) — Source: SEC 10-K · FY2026 (period ending 2026-06-30)",
+  "FY2026 (period ending 2026-06-30) operating margin 46.8% (operating income $155.2B) — Source: SEC 10-K · FY2026 (period ending 2026-06-30)",
+  "FY2026 (period ending 2026-06-30) diluted EPS 17.95 — Source: SEC 10-K · FY2026 (period ending 2026-06-30)",
+  "Net cash $36.5B (cash + ST investments $76.8B / interest-bearing debt $40.3B) — Source: SEC 10-K balance sheet (2026-06-30)",
+  "Common shareholders' equity $442.4B — Source: SEC 10-K balance sheet (2026-06-30)",
+  "FY2026 (period ending 2026-06-30) operating cash flow $182.9B, capex $115.9B → free cash flow $67.0B — Source: SEC 10-K cash-flow statement",
+  "FY2026 (period ending 2026-06-30) shareholder returns: buybacks $22.3B, dividends $26.4B — Source: SEC 10-K cash-flow statement",
+  "Market cap ≈ $3,869.2B (fiscal-year weighted diluted shares × last price) — Source: SEC 10-K shares × CBOE price",
+  "52-week range 352.83–555.80, price at the 81% percentile — Source: CBOE daily bars (as of 2026-11-16)"
+ ],
+ "news": [
+  "Barchart: Stock Indexes Retreat as Chipmakers and AI Stocks Fall (https://www.nasdaq.com/articles/stock-indexes-retreat-chipmakers-and-ai-stocks-fall)",
+  "The Motley Fool: Anthropic Launches Claude Sheets. Is Microsoft's Stock in Trouble? (https://www.nasdaq.com/articles/anthropic-launches-claude-sheets-microsofts-stock-trouble)",
+  "The Motley Fool: Tokenized Equities Hit Another Record High of $3.8 Billion. Is This the Biggest Bull Market in Crypto Right Now? (https://www.nasdaq.com/articles/tokenized-equities-hit-another-record-high-38-billion-biggest-bull-market-crypto-right-now)"
+ ],
+ "technicals": {
+  "trend": "Price is above the 60-day MA (SMA60=516.28)",
+  "momentum": "20-day momentum -2.9%",
+  "volatility": "30-day annualized volatility 32%",
+  "range52": "52-week range 352.83–555.80, price at the 81% percentile — Source: CBOE daily bars (as of 2026-11-16)"
+ },
+ "_source": "openbb:cboe+sec+nasdaq",
+ "_providers": {
+  "historical": "cboe",
+  "quote": "cboe",
+  "fundamentals": "sec",
+  "news": "nasdaq",
+  "fetched_at": "2026-11-17T20:48:51"
+ },
+ "_note": "M1 rich card: CBOE quote/K-line/IV + SEC 10-K statements + nasdaq news, zero-key and Yahoo-free; degraded blocks: none"
+}
