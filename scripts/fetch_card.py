@@ -6,9 +6,13 @@
 不编造、不外推。市场自动识别：纯数字代码 → A股(akshare)，否则美股(yfinance)。
 
 用法：
-  python3 scripts/fetch_card.py --ticker NVDA            # 美股 → cards/NVDA.json
+  python3 scripts/fetch_card.py --ticker NVDA            # 美股 → cards/NVDA.json（默认 OpenBB 富卡）
   python3 scripts/fetch_card.py --ticker 600519          # A股 → cards/600519.json
   python3 scripts/fetch_card.py --ticker NVDA --committee  # 取卡后直接开庭
+
+美股通道（M1）：OpenBB 多 provider 富卡 —— cboe 报价/K线/隐含波动、sec 年报三表、
+nasdaq 新闻，全部零 key 且不经雅虎（yfinance 全局限流痛点就此绕开）；各数据块
+独立降级，缺什么就少什么。OpenBB 不可用时回落腾讯 Tier2。
 """
 import argparse, datetime as dt, json, math, os, subprocess, sys
 
@@ -18,6 +22,157 @@ CARDS = os.path.join(KIT, "cards")
 
 def pct(x):
     return f"{x * 100:+.1f}%" if x is not None and not (isinstance(x, float) and math.isnan(x)) else None
+
+
+def _tech_from_closes(closes, src_label):
+    """K 线技术面（纯收盘价序列，腾讯/OpenBB 两通道共用）。"""
+    sma60 = sum(closes[-60:]) / 60
+    mom20 = closes[-1] / closes[-21] - 1
+    vol30 = (sum((closes[i] / closes[i - 1] - 1) ** 2 for i in range(-30, 0)) / 30) ** 0.5 * (252 ** 0.5)
+    hi52, lo52 = max(closes[-252:]), min(closes[-252:])
+    pos52 = (closes[-1] - lo52) / (hi52 - lo52)
+    tech = {
+        "trend": f"现价 {'站稳' if closes[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
+        "momentum": f"20 日动量 {mom20 * 100:+.1f}%",
+        "volatility": f"30 日年化波动 {vol30:.0%}",
+        "range52": f"52 周区间 {lo52:.2f}–{hi52:.2f}，现价处于 {pos52:.0%} 分位 — 来源：{src_label}",
+    }
+    return tech
+
+
+def _billions(x):
+    return f"${x / 1e9:,.1f}B" if x is not None else None
+
+
+def _num(x):
+    """SEC 表列的 None/NaN 统一归 None（np.nan 是 truthy，`or 0` 拦不住）。"""
+    try:
+        v = float(x)
+        return v if v == v else None
+    except (TypeError, ValueError):
+        return None
+
+
+def fetch_us_openbb(ticker):
+    """M1 富卡：OpenBB 多 provider —— cboe（报价/K线/IV30）、sec（年报三表）、nasdaq（新闻）。
+
+    全零 key、不经雅虎；四块独立降级（K线块为技术面必需，失败则抛错让上层回落腾讯）。
+    证据纪律：每条基本面带来源与截至日期，财务一律年报口径并点名报告期。
+    """
+    from openbb import obb
+
+    providers, fails = {}, []
+
+    # ── 块1 · cboe K 线（必需：技术面 + 52 周） ──
+    hist = obb.equity.price.historical(
+        ticker, provider="cboe",
+        start_date=(dt.date.today() - dt.timedelta(days=400)).isoformat()).to_df()
+    if hist.empty:
+        raise SystemExit(f"cboe K 线为空：{ticker}")
+    providers["historical"] = "cboe"
+    closes = [float(x) for x in hist["close"]]
+    k_as_of = hist.index[-1].strftime("%Y-%m-%d")
+    tech = _tech_from_closes(closes, f"CBOE 日线（截至 {k_as_of}）")
+
+    fundamentals = []
+
+    # ── 块2 · cboe 报价（现价 + 盘面 + 隐含波动） ──
+    quote, q_as_of = None, k_as_of
+    try:
+        qdf = obb.equity.price.quote(ticker, provider="cboe").to_df()
+        quote = qdf.iloc[0].to_dict()
+        providers["quote"] = "cboe"
+        q_as_of = str(quote.get("last_timestamp"))[:10] or k_as_of
+        fundamentals.append(
+            f"现价 {quote['last_price']:.2f} USD（日内 {quote['change_percent'] * 100:+.2f}%，"
+            f"买一 {quote.get('bid')}/卖一 {quote.get('ask')}） — 来源：CBOE 报价（截至 {q_as_of}）")
+        if quote.get("iv30") is not None:
+            hv = f"，30 日已实现波动 {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+            fundamentals.append(f"30 日期权隐含波动率 {quote['iv30']:.0%}{hv} — 来源：CBOE IV30/HV30（截至 {q_as_of}）")
+    except Exception as e:
+        fails.append(f"quote:{type(e).__name__}")
+        fundamentals.append(f"现价 {closes[-1]:.2f} USD（最近收盘） — 来源：CBOE 日线（截至 {k_as_of}）")
+    price = round(float(quote["last_price"]), 2) if quote else round(closes[-1], 2)
+    as_of = max(q_as_of, k_as_of)
+
+    # ── 块3 · sec 年报三表（财务证据主块） ──
+    try:
+        inc = obb.equity.fundamental.income(ticker, provider="sec", period="annual", limit=2).to_df()
+        bal = obb.equity.fundamental.balance(ticker, provider="sec", period="annual", limit=2).to_df()
+        csh = obb.equity.fundamental.cash(ticker, provider="sec", period="annual", limit=2).to_df()
+        providers["fundamentals"] = "sec"
+        i0 = inc.sort_values("period_ending", ascending=False).iloc[0]
+        fy = f"FY{i0['fiscal_year']}（报告期 {str(i0['period_ending'])[:10]}）"
+        src = f"SEC 10-K · {fy}"
+        rev, ni = _num(i0.get("total_revenue")), _num(i0.get("net_income"))
+        gp, oi = _num(i0.get("total_gross_profit")), _num(i0.get("total_operating_income"))
+        if rev:
+            line = f"{fy} 营收 {_billions(rev)}"
+            if len(inc) > 1:
+                prev = _num(inc.sort_values("period_ending", ascending=False).iloc[1].get("total_revenue"))
+                if prev:
+                    line += f"（上年 {_billions(prev)}，同比 {(rev / prev - 1) * 100:+.1f}%）"
+            fundamentals.append(line + f" — 来源：{src}")
+        if rev and ni is not None:
+            fundamentals.append(f"{fy} 净利润 {_billions(ni)}（净利率 {ni / rev:.1%}） — 来源：{src}")
+        if rev and gp:
+            fundamentals.append(f"{fy} 毛利率 {gp / rev:.1%}（毛利 {_billions(gp)}） — 来源：{src}")
+        if rev and oi:
+            fundamentals.append(f"{fy} 营业利润率 {oi / rev:.1%}（营业利润 {_billions(oi)}） — 来源：{src}")
+        eps = _num(i0.get("diluted_eps"))
+        if eps is not None:
+            fundamentals.append(f"{fy} 摊薄每股收益 {eps:.2f} — 来源：{src}")
+        b0 = bal.sort_values("period_ending", ascending=False).iloc[0]
+        cash = (_num(b0.get("cash_and_equivalents")) or 0) + (_num(b0.get("short_term_investments")) or 0)
+        debt = (_num(b0.get("long_term_debt")) or 0) + (_num(b0.get("current_portion_of_long_term_debt")) or 0)
+        if cash or debt:
+            fundamentals.append(
+                f"净现金 {_billions(cash - debt)}（现金+短投 {_billions(cash)} / 有息负债 {_billions(debt)}）"
+                f" — 来源：SEC 10-K 资产负债表（{str(b0['period_ending'])[:10]}）")
+        eq = _num(b0.get("total_common_equity"))
+        if eq:
+            fundamentals.append(f"归母股东权益 {_billions(eq)} — 来源：SEC 10-K 资产负债表（{str(b0['period_ending'])[:10]}）")
+        c0 = csh.sort_values("period_ending", ascending=False).iloc[0]
+        ocf, capex = _num(c0.get("net_cash_from_operating_activities")), _num(c0.get("purchase_of_plant_property_and_equipment"))
+        if ocf is not None:
+            fcf = ocf - abs(capex or 0)
+            fundamentals.append(
+                f"{fy} 经营现金流 {_billions(ocf)}、资本开支 {_billions(abs(capex or 0))}"
+                f" → 自由现金流 {_billions(fcf)} — 来源：SEC 10-K 现金流量表")
+        bb, dv = _num(c0.get("repurchase_of_common_equity")), _num(c0.get("payment_of_dividends"))
+        if bb or dv:
+            fundamentals.append(
+                f"{fy} 股东回报：回购 {_billions(abs(bb or 0))}、分红 {_billions(abs(dv or 0))} — 来源：SEC 10-K 现金流量表")
+        shares = _num(i0.get("weighted_ave_diluted_shares_os"))
+        if shares and price:
+            fundamentals.append(
+                f"总市值约 {_billions(shares * price)}（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价")
+    except Exception as e:
+        fails.append(f"sec:{type(e).__name__}")
+        print(f"⚠ SEC 财务块失败（{type(e).__name__}），富卡降级为行情+技术面", file=sys.stderr)
+
+    # ── 块4 · nasdaq 新闻 ──
+    news = []
+    try:
+        ndf = obb.news.company(ticker, limit=8).to_df()
+        providers["news"] = "nasdaq"
+        for _, r in ndf.iterrows():
+            syms = str(r.get("symbols") or "")
+            if ticker.split(".")[0].upper() not in syms.upper():
+                continue
+            news.append(f"{r.get('publisher', '?')}：{r.get('title', '')}（{r.get('url', '')}）")
+            if len(news) >= 3:
+                break
+    except Exception as e:
+        fails.append(f"news:{type(e).__name__}")
+
+    card = {"ticker": ticker, "as_of": as_of, "price": price,
+            "fundamentals": fundamentals + [tech["range52"]], "news": news, "technicals": tech,
+            "_source": "openbb:cboe+sec+nasdaq",
+            "_providers": {**providers, "fetched_at": dt.datetime.now().isoformat(timespec="seconds")},
+            "_note": "M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；"
+                     f"降级块：{', '.join(fails) if fails else '无'}"}
+    return card
 
 
 def fetch_us_tencent(ticker):
@@ -42,22 +197,13 @@ def fetch_us_tencent(ticker):
     k = json.loads(get(f"https://web.ifzq.gtimg.cn/appstock/app/usfqkline/get?param=us{ticker}.OQ,day,,,320,qfq").decode())
     days = k["data"][f"us{ticker}.OQ"]["qfqday"]
     closes = [float(d[2]) for d in days]
-    sma60 = sum(closes[-60:]) / 60
-    mom20 = closes[-1] / closes[-21] - 1
-    vol30 = (sum((closes[i] / closes[i - 1] - 1) ** 2 for i in range(-30, 0)) / 30) ** 0.5 * (252 ** 0.5)
-    hi52, lo52 = max(closes[-252:]), min(closes[-252:])
-    pos52 = (closes[-1] - lo52) / (hi52 - lo52)
     fundamentals = [f"现价 {price} USD（日内 {chg_pct:+.2f}%） — 来源：腾讯美股行情（截至 {as_of}）"]
     if mcap_b > 0 and pe:
         fundamentals.append(f"总市值约 ${mcap_b:.1f}B、滚动市盈率约 {pe:.1f} 倍 — 来源：同上")
     elif mcap_b > 0:
         fundamentals.append(f"总市值约 ${mcap_b:.1f}B — 来源：同上")
-    fundamentals.append(f"52 周区间 {lo52:.2f}–{hi52:.2f}，现价处于 {pos52:.0%} 分位 — 来源：腾讯前复权日线（320 日窗口）")
-    tech = {
-        "trend": f"现价 {'站稳' if closes[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
-        "momentum": f"20 日动量 {mom20 * 100:+.1f}%",
-        "volatility": f"30 日年化波动 {vol30:.0%}",
-    }
+    tech = _tech_from_closes(closes, "腾讯前复权日线（320 日窗口）")
+    fundamentals.append(tech["range52"])
     return {"ticker": ticker, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": [], "technicals": tech,
             "_source": "tencent-gtimg", "_note": "Tier2 国内直连：报价+K线真实；财务明细与新闻缺失（需 yfinance 通道）"}
@@ -71,7 +217,7 @@ def fetch_us_via_relay(ticker):
     sp.run(["scp", "-i", key, "-o", "ConnectTimeout=10", "-q",
             os.path.join(KIT, "scripts", "fetch_card.py"), f"{host}:/tmp/fetch_card.py"], check=True)
     r = sp.run(["ssh", "-i", key, "-o", "ConnectTimeout=10", host,
-                f"python3 /tmp/fetch_card.py --ticker {ticker} --market us --out /tmp/card_{ticker}.json"],
+                f"python3 /tmp/fetch_card.py --ticker {ticker} --market us --tier yfinance --out /tmp/card_{ticker}.json"],
                capture_output=True, text=True, timeout=180)
     if r.returncode != 0:
         raise SystemExit(f"中继取数失败: {r.stdout[-200:]} {r.stderr[-200:]}")
@@ -162,23 +308,14 @@ def fetch_cn_tencent(code):
     k = json.loads(get(f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,,,320,qfq").decode())
     days = k["data"][sym]["qfqday"] or k["data"][sym].get("day")
     closes = [float(d[2]) for d in days]
-    sma60 = sum(closes[-60:]) / 60
-    mom20 = closes[-1] / closes[-21] - 1
-    vol30 = (sum((closes[i] / closes[i - 1] - 1) ** 2 for i in range(-30, 0)) / 30) ** 0.5 * (252 ** 0.5)
-    hi52, lo52 = max(closes[-252:]), min(closes[-252:])
-    pos52 = (closes[-1] - lo52) / (hi52 - lo52)
     fundamentals = [f"现价 {price} CNY（日内 {chg_pct:+.2f}%） — 来源：腾讯 A 股行情（截至 {as_of}）"]
     if mcap_yi:
         line = f"总市值约 {mcap_yi:.0f} 亿元"
         if pe: line += f"、市盈率(TTM)约 {pe:.1f} 倍"
         if pb: line += f"、市净率约 {pb:.1f} 倍"
         fundamentals.append(line + " — 来源：同上")
-    fundamentals.append(f"52 周区间 {lo52:.2f}–{hi52:.2f}，现价处于 {pos52:.0%} 分位 — 来源：腾讯前复权日线（320 日窗口）")
-    tech = {
-        "trend": f"现价 {'站稳' if closes[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
-        "momentum": f"20 日动量 {mom20 * 100:+.1f}%",
-        "volatility": f"30 日年化波动 {vol30:.0%}",
-    }
+    tech = _tech_from_closes(closes, "腾讯前复权日线（320 日窗口）")
+    fundamentals.append(tech["range52"])
     return {"ticker": code, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": [], "technicals": tech,
             "_source": "tencent-gtimg", "_note": "A 股腾讯通道：报价+K线真实；财务明细与新闻缺失（东财通道限流时自动略过）"}
@@ -235,7 +372,8 @@ def main():
     ap.add_argument("--market", choices=("auto", "us", "cn"), default="auto")
     ap.add_argument("--committee", action="store_true", help="取卡后直接运行议院")
     ap.add_argument("--via-relay", action="store_true", help="经 SSH 中继跑 yfinance 全量（国内网络用）")
-    ap.add_argument("--tier", choices=("auto", "tencent"), default="auto", help="auto=直连yfinance失败转腾讯；tencent=强制Tier2")
+    ap.add_argument("--tier", choices=("auto", "openbb", "tencent", "yfinance"), default="auto",
+                    help="auto=OpenBB 富卡失败转腾讯；openbb=强制富卡；tencent=腾讯 Tier2；yfinance=直连雅虎（需干净网络）")
     args = ap.parse_args()
     market = args.market
     if market == "auto":
@@ -253,11 +391,15 @@ def main():
         card = fetch_us_via_relay(args.ticker)
     elif args.tier == "tencent":
         card = fetch_us_tencent(args.ticker)
-    else:
+    elif args.tier == "yfinance":
+        card = fetch_us(args.ticker)
+    elif args.tier == "openbb":
+        card = fetch_us_openbb(args.ticker)
+    else:  # auto：OpenBB 富卡优先，整体失败回落腾讯 Tier2
         try:
-            card = fetch_us(args.ticker)
-        except Exception as e:
-            print(f"⚠ yfinance 直连失败（{type(e).__name__}），降级腾讯 Tier2", file=sys.stderr)
+            card = fetch_us_openbb(args.ticker)
+        except (Exception, SystemExit) as e:
+            print(f"⚠ OpenBB 富卡失败（{type(e).__name__ if not isinstance(e, SystemExit) else e}），降级腾讯 Tier2", file=sys.stderr)
             card = fetch_us_tencent(args.ticker)
     validate(card)
     if args.out:

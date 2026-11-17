@@ -34,9 +34,14 @@
 - [ ] 星标看板：每日记录，第 7 天复盘渠道转化
 
 ### M1 · 真数据 + 插件化（第 2-3 周）
-- [ ] 数据适配器：yfinance（美股零 Key）/ akshare（A 股零 Key），数据卡 Schema 固化
-- [ ] cordis 插件形态（逆向 @deepseek-ai/dsh-subagent 与 jevcore-dsh 结构）：
-      `dsh plugin add dsh-tradingagents` 一行装；委员会作为 typed tools 暴露
+- [x] 数据适配器：yfinance（美股零 Key）/ akshare（A 股零 Key），数据卡 Schema 固化（WP1，2026-11-16）
+- [x] 富数据卡（2026-11-17）：OpenBB 多 provider —— CBOE 报价/K线/IV30 + SEC 10-K 三表 +
+      nasdaq 新闻，全零 Key 且不经雅虎（yfinance 全局限流痛点绕开）；四块独立降级、
+      NaN 哨兵防泄漏；NVDA 开庭 PASS@72（IV30/HV30 与证据错配稽核入裁决）、AAPL 全绿
+- [ ] 人格包跨接：ai-hedge-fund 客座席位
+- [ ] npm 0.1.0 skill bundle（按 docs/plugin-spec.md jevcore-dsh 模板）：
+      `dsh plugin add dsh-tradingagents` 一行装，委员会作为 typed tools 暴露
+- [ ] super-agent 分发接入（@vicfei/dsh-super-agent 可装形态）
 - [ ] 成本护栏：每场上限（调用数/token 预算），headless CI 冒烟入 README badge
 
 ### M2 · 人格包 + 组合议院（第 4-6 周）

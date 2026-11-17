@@ -33,8 +33,10 @@ python3 scripts/fetch_card.py --ticker NVDA --committee         # real US data �
 python3 scripts/fetch_card.py --ticker 600519 --committee       # real A-share data → full committee
 ```
 
-Real data runs on a three-tier ladder, CN-cloud friendly:
-**yfinance direct → Tencent gtimg (works behind the GFW: quote / PE / mcap / PB +
+Real data runs on a multi-provider ladder, CN-cloud friendly and **Yahoo-free**:
+**OpenBB rich card (default, `pip install --user openbb`): CBOE quote / K-line /
+options-implied vol + SEC 10-K statements + nasdaq news — all zero-key
+→ Tencent gtimg fallback (works behind the GFW: quote / PE / mcap / PB +
 K-line technicals, same engine for US & A-share) → `--via-relay` full yfinance
 through any SSH relay**. Every card item carries its source and as-of date —
 the evidence-tag discipline starts at the data layer.

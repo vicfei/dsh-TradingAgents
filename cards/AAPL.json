@@ -1,0 +1,40 @@
+{
+ "ticker": "AAPL",
+ "as_of": "2026-11-16",
+ "price": 353.61,
+ "fundamentals": [
+  "现价 353.61 USD（日内 -0.98%，买一 353.6/卖一 353.8） — 来源：CBOE 报价（截至 2026-11-16）",
+  "30 日期权隐含波动率 24% — 来源：CBOE IV30/HV30（截至 2026-11-16）",
+  "FY2026（报告期 2026-09-26） 营收 $478.8B（上年 $416.2B，同比 +15.1%） — 来源：SEC 10-K · FY2026（报告期 2026-09-26）",
+  "FY2026（报告期 2026-09-26） 净利润 $132.2B（净利率 27.6%） — 来源：SEC 10-K · FY2026（报告期 2026-09-26）",
+  "FY2026（报告期 2026-09-26） 毛利率 48.8%（毛利 $233.6B） — 来源：SEC 10-K · FY2026（报告期 2026-09-26）",
+  "FY2026（报告期 2026-09-26） 营业利润率 33.0%（营业利润 $158.1B） — 来源：SEC 10-K · FY2026（报告期 2026-09-26）",
+  "FY2026（报告期 2026-09-26） 摊薄每股收益 8.98 — 来源：SEC 10-K · FY2026（报告期 2026-09-26）",
+  "净现金 $-21.4B（现金+短投 $56.7B / 有息负债 $78.1B） — 来源：SEC 10-K 资产负债表（2026-09-26）",
+  "归母股东权益 $112.1B — 来源：SEC 10-K 资产负债表（2026-09-26）",
+  "FY2026（报告期 2026-09-26） 经营现金流 $145.1B、资本开支 $9.0B → 自由现金流 $136.1B — 来源：SEC 10-K 现金流量表",
+  "FY2026（报告期 2026-09-26） 股东回报：回购 $86.4B、分红 $15.7B — 来源：SEC 10-K 现金流量表",
+  "总市值约 $5,205.2B（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价",
+  "52 周区间 246.63–356.27，现价处于 100% 分位 — 来源：CBOE 日线（截至 2026-11-13）"
+ ],
+ "news": [
+  "The Motley Fool：Apple's Market Value Grew From $350 Billion to $4 Trillion During Tim Cook's 15 Years as CEO. Here's What That Growth Curve Means for Apple's Next Chapter Under John Ternus（https://www.nasdaq.com/articles/apples-market-value-grew-350-billion-4-trillion-during-tim-cooks-15-years-ceo-heres-what-0）",
+  "The Motley Fool：The Blockchain Boom Is Still Happening Behind the Scenes. These 3 Growth Stocks Will Benefit.（https://www.nasdaq.com/articles/blockchain-boom-still-happening-behind-scenes-these-3-growth-stocks-will-benefit）",
+  "The Motley Fool：Michael Burry's Puts on the Nasdaq-100 Run to April 2027. I'm Not Following Him.（https://www.nasdaq.com/articles/michael-burrys-puts-nasdaq-100-run-april-2027-im-not-following-him）"
+ ],
+ "technicals": {
+  "trend": "现价 站稳 60 日均线（SMA60=335.40）",
+  "momentum": "20 日动量 +3.7%",
+  "volatility": "30 日年化波动 23%",
+  "range52": "52 周区间 246.63–356.27，现价处于 100% 分位 — 来源：CBOE 日线（截至 2026-11-13）"
+ },
+ "_source": "openbb:cboe+sec+nasdaq",
+ "_providers": {
+  "historical": "cboe",
+  "quote": "cboe",
+  "fundamentals": "sec",
+  "news": "nasdaq",
+  "fetched_at": "2026-11-17T11:56:19"
+ },
+ "_note": "M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；降级块：无"
+}
