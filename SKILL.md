@@ -14,6 +14,7 @@ python3 $KIT/scripts/tradingagents.py --ticker DEMO                    # offline
 python3 $KIT/scripts/tradingagents.py --ticker DEMO --guests all --save  # + 4 guest seats
 python3 $KIT/scripts/fetch_card.py --ticker NVDA --committee           # real data → full committee
 python3 $KIT/scripts/ledger.py --settle                                # settle due verdicts (alpha vs benchmark)
+python3 $KIT/scripts/render_html.py memos/<memo>.md                    # single-file HTML memo
 ```
 
 ## Track record (issue #2 loop)

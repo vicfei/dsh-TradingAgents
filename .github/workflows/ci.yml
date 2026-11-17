@@ -50,6 +50,38 @@ jobs:
           assert v["confidence"] == 80 and v["reasoning"] == "x"               # payload preserved
           print("verdict dual-exit: PASS")
           EOF
+      - name: html render structure (pure, no network)
+        run: |
+          python3 - <<'EOF'
+          import importlib.util, re
+          spec = importlib.util.spec_from_file_location("rh", "scripts/render_html.py")
+          R = importlib.util.module_from_spec(spec); spec.loader.exec_module(R)
+          md = """# IC-MEMO · X · 2026-01-01
+
+```yaml
+ticker: X
+decision: PASS
+```
+
+## 1 · Analyst notes
+- [A1] fact one
+
+## 2 · Guest critiques
+| Guest | Stance | Conviction |
+|---|---|---|
+| Warren Buffett | PASS | 72 |
+
+---
+*footer · not investment advice*
+"""
+          h = R.render(md)
+          for needle in ("<nav>", 'pre class="yaml"', "<table>", "<h2 id="):
+              assert needle in h, needle
+          ids = set(re.findall(r'<h2 id="([^"]+)"', h))
+          links = set(re.findall(r'href="#([^"]+)"', h))
+          assert links <= ids and len(links) == 2, (links, ids)
+          print("html render: PASS")
+          EOF
       - name: data cards schema
         run: |
           python3 - <<'EOF'
