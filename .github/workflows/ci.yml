@@ -136,6 +136,23 @@ jobs:
           assert "_weight_warning" in r3
           print("allocation resolver: PASS")
           EOF4
+      - name: backtest grid guards (pure, no network)
+        run: |
+          python3 - <<'EOF5'
+          import importlib.util
+          spec = importlib.util.spec_from_file_location("bt", "scripts/backtest.py")
+          B = importlib.util.module_from_spec(spec); spec.loader.exec_module(B)
+          g = B.iter_grid("2026-08-01", "2026-10-01", 14, today="2026-11-17")
+          assert g[0] == "2026-08-01" and g[-1] <= "2026-10-01"
+          assert B.iter_grid("2026-11-10", "2026-12-31", 1, today="2026-11-17")[-1] == "2026-11-17"
+          for fn in (lambda: B.iter_grid("2026-08-01", "2026-10-01", 0),
+                     lambda: B.iter_grid("2026-1-1", "2026-10-01", 1),
+                     lambda: B.iter_grid("2026-10-01", "2026-08-01", 1)):
+              try: fn(); assert False
+              except ValueError: pass
+          assert B.summarize("/nonexistent")["resolved"] == 0
+          print("grid guards: PASS")
+          EOF5
       - name: data cards schema
         run: |
           python3 - <<'EOF'

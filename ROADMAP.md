@@ -133,11 +133,17 @@ issue → branch → PR.
       variant documented in the template (issue #9)
 - [ ] cordis typed-tools plugin module (0.2.0): real `dsh plugin add` registration,
       committee exposed as typed tools (issue #10)
-- [ ] Backtest grid: iter_grid/run/summarize over (ticker, date) cells into an isolated
-      ledger; public win-rate/alpha-bucket page — "self-proving credibility" made
-      literal, and evergreen content (issue #11)
+- [x] Backtest grid + track-record page (2026-11-17, PR #24): scripts/backtest.py —
+      iter_grid (never past today) / per-cell as-of card → committee into a **run-local
+      isolated ledger** (a sweep never floods the ledger real sessions read back) /
+      settlement grades each traded window / summarize by decision bucket (direction
+      hit-rate for directed calls, null for HOLD — no direction claimed; PASS/REVIEW
+      counted, never scored) / `--report` writes track-record.md + .html with the
+      one-sampling-not-repeatable disclosure. Live-verified: AAPL × 2 dates → 2 HOLD
+      settled at +2.8% / -0.3% alpha vs SPY, isolated run dir, report rendered
+      (issue #11 in-repo scope)
 - [ ] IC-MEMO standalone spec repo + multi-language SDK (Python/TS) + community
-      persona-pack SDK
+      persona-pack SDK (issue #12, split out of #11)
 
 ## Explicit non-goals (nailed down at replan)
 
