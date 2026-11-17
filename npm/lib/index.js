@@ -62,8 +62,7 @@ export async function apply(ctx) {
                 properties: { memo: { type: "string", required: true } } },
       render: (_args, value) => [{
         type: "text",
-        text: (value.memo.split("\n").find(l => l.startsWith("decision:"))
-              || "committee session complete — see the memo for the evidence-tagged verdict"),
+        text: value.memo,   // the full IC-MEMO: the verdict is meaningless without its evidence tags
       }],
     },
     execute(args) {
