@@ -20,6 +20,11 @@ KIT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # npm CLI 形态经 TRADINGAGENTS_CARDS 把数据卡落到调用方 cwd（缺省落仓内，开发行为不变）
 CARDS = os.environ.get("TRADINGAGENTS_CARDS") or os.path.join(KIT, "cards")
 
+# Card language: English by default (international-first), --lang zh / TRADINGAGENTS_LANG for Chinese
+LANG = os.environ.get("TRADINGAGENTS_LANG") or "en"
+def tt(en, zh):
+    return en if LANG == "en" else zh
+
 
 def pct(x):
     return f"{x * 100:+.1f}%" if x is not None and not (isinstance(x, float) and math.isnan(x)) else None
@@ -33,10 +38,12 @@ def _tech_from_closes(closes, src_label):
     hi52, lo52 = max(closes[-252:]), min(closes[-252:])
     pos52 = (closes[-1] - lo52) / (hi52 - lo52)
     tech = {
-        "trend": f"现价 {'站稳' if closes[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
-        "momentum": f"20 日动量 {mom20 * 100:+.1f}%",
-        "volatility": f"30 日年化波动 {vol30:.0%}",
-        "range52": f"52 周区间 {lo52:.2f}–{hi52:.2f}，现价处于 {pos52:.0%} 分位 — 来源：{src_label}",
+        "trend": tt(f"Price is {'above' if closes[-1] > sma60 else 'below'} the 60-day MA (SMA60={sma60:.2f})",
+                    f"现价 {'站稳' if closes[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）"),
+        "momentum": tt(f"20-day momentum {mom20 * 100:+.1f}%", f"20 日动量 {mom20 * 100:+.1f}%"),
+        "volatility": tt(f"30-day annualized volatility {vol30:.0%}", f"30 日年化波动 {vol30:.0%}"),
+        "range52": tt(f"52-week range {lo52:.2f}–{hi52:.2f}, price at the {pos52:.0%} percentile — Source: {src_label}",
+                      f"52 周区间 {lo52:.2f}–{hi52:.2f}，现价处于 {pos52:.0%} 分位 — 来源：{src_label}"),
     }
     return tech
 
@@ -73,7 +80,7 @@ def fetch_us_openbb(ticker):
     providers["historical"] = "cboe"
     closes = [float(x) for x in hist["close"]]
     k_as_of = hist.index[-1].strftime("%Y-%m-%d")
-    tech = _tech_from_closes(closes, f"CBOE 日线（截至 {k_as_of}）")
+    tech = _tech_from_closes(closes, tt(f"CBOE daily bars (as of {k_as_of})", f"CBOE 日线（截至 {k_as_of}）"))
 
     fundamentals = []
 
@@ -84,15 +91,22 @@ def fetch_us_openbb(ticker):
         quote = qdf.iloc[0].to_dict()
         providers["quote"] = "cboe"
         q_as_of = str(quote.get("last_timestamp"))[:10] or k_as_of
-        fundamentals.append(
+        fundamentals.append(tt(
+            f"Last {quote['last_price']:.2f} USD (intraday {quote['change_percent'] * 100:+.2f}%, "
+            f"bid {quote.get('bid')} / ask {quote.get('ask')}) — Source: CBOE quote (as of {q_as_of})",
             f"现价 {quote['last_price']:.2f} USD（日内 {quote['change_percent'] * 100:+.2f}%，"
-            f"买一 {quote.get('bid')}/卖一 {quote.get('ask')}） — 来源：CBOE 报价（截至 {q_as_of}）")
+            f"买一 {quote.get('bid')}/卖一 {quote.get('ask')}） — 来源：CBOE 报价（截至 {q_as_of}）"))
         if quote.get("iv30") is not None:
-            hv = f"，30 日已实现波动 {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
-            fundamentals.append(f"30 日期权隐含波动率 {quote['iv30']:.0%}{hv} — 来源：CBOE IV30/HV30（截至 {q_as_of}）")
+            hv_en = f", 30-day realized {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+            hv_zh = f"，30 日已实现波动 {quote['hv30']:.0%}" if quote.get("hv30") is not None else ""
+            fundamentals.append(tt(
+                f"30-day options-implied volatility {quote['iv30']:.0%}{hv_en} — Source: CBOE IV30/HV30 (as of {q_as_of})",
+                f"30 日期权隐含波动率 {quote['iv30']:.0%}{hv_zh} — 来源：CBOE IV30/HV30（截至 {q_as_of}）"))
     except Exception as e:
         fails.append(f"quote:{type(e).__name__}")
-        fundamentals.append(f"现价 {closes[-1]:.2f} USD（最近收盘） — 来源：CBOE 日线（截至 {k_as_of}）")
+        fundamentals.append(tt(
+            f"Last {closes[-1]:.2f} USD (latest close) — Source: CBOE daily bars (as of {k_as_of})",
+            f"现价 {closes[-1]:.2f} USD（最近收盘） — 来源：CBOE 日线（截至 {k_as_of}）"))
     price = round(float(quote["last_price"]), 2) if quote else round(closes[-1], 2)
     as_of = max(q_as_of, k_as_of)
 
@@ -103,51 +117,69 @@ def fetch_us_openbb(ticker):
         csh = obb.equity.fundamental.cash(ticker, provider="sec", period="annual", limit=2).to_df()
         providers["fundamentals"] = "sec"
         i0 = inc.sort_values("period_ending", ascending=False).iloc[0]
-        fy = f"FY{i0['fiscal_year']}（报告期 {str(i0['period_ending'])[:10]}）"
+        fy = tt(f"FY{i0['fiscal_year']} (period ending {str(i0['period_ending'])[:10]})",
+                f"FY{i0['fiscal_year']}（报告期 {str(i0['period_ending'])[:10]}）")
         src = f"SEC 10-K · {fy}"
         rev, ni = _num(i0.get("total_revenue")), _num(i0.get("net_income"))
         gp, oi = _num(i0.get("total_gross_profit")), _num(i0.get("total_operating_income"))
         if rev:
-            line = f"{fy} 营收 {_billions(rev)}"
+            line_en, line_zh = f"{fy} revenue {_billions(rev)}", f"{fy} 营收 {_billions(rev)}"
             if len(inc) > 1:
                 prev = _num(inc.sort_values("period_ending", ascending=False).iloc[1].get("total_revenue"))
                 if prev:
-                    line += f"（上年 {_billions(prev)}，同比 {(rev / prev - 1) * 100:+.1f}%）"
-            fundamentals.append(line + f" — 来源：{src}")
+                    yoy = f"{(rev / prev - 1) * 100:+.1f}%"
+                    line_en += f" (prior {_billions(prev)}, YoY {yoy})"
+                    line_zh += f"（上年 {_billions(prev)}，同比 {yoy}）"
+            fundamentals.append(tt(line_en + f" — Source: {src}", line_zh + f" — 来源：{src}"))
         if rev and ni is not None:
-            fundamentals.append(f"{fy} 净利润 {_billions(ni)}（净利率 {ni / rev:.1%}） — 来源：{src}")
+            fundamentals.append(tt(
+                f"{fy} net income {_billions(ni)} (net margin {ni / rev:.1%}) — Source: {src}",
+                f"{fy} 净利润 {_billions(ni)}（净利率 {ni / rev:.1%}） — 来源：{src}"))
         if rev and gp:
-            fundamentals.append(f"{fy} 毛利率 {gp / rev:.1%}（毛利 {_billions(gp)}） — 来源：{src}")
+            fundamentals.append(tt(
+                f"{fy} gross margin {gp / rev:.1%} (gross profit {_billions(gp)}) — Source: {src}",
+                f"{fy} 毛利率 {gp / rev:.1%}（毛利 {_billions(gp)}） — 来源：{src}"))
         if rev and oi:
-            fundamentals.append(f"{fy} 营业利润率 {oi / rev:.1%}（营业利润 {_billions(oi)}） — 来源：{src}")
+            fundamentals.append(tt(
+                f"{fy} operating margin {oi / rev:.1%} (operating income {_billions(oi)}) — Source: {src}",
+                f"{fy} 营业利润率 {oi / rev:.1%}（营业利润 {_billions(oi)}） — 来源：{src}"))
         eps = _num(i0.get("diluted_eps"))
         if eps is not None:
-            fundamentals.append(f"{fy} 摊薄每股收益 {eps:.2f} — 来源：{src}")
+            fundamentals.append(tt(
+                f"{fy} diluted EPS {eps:.2f} — Source: {src}",
+                f"{fy} 摊薄每股收益 {eps:.2f} — 来源：{src}"))
         b0 = bal.sort_values("period_ending", ascending=False).iloc[0]
         cash = (_num(b0.get("cash_and_equivalents")) or 0) + (_num(b0.get("short_term_investments")) or 0)
         debt = (_num(b0.get("long_term_debt")) or 0) + (_num(b0.get("current_portion_of_long_term_debt")) or 0)
+        bsrc_en = f"SEC 10-K balance sheet ({str(b0['period_ending'])[:10]})"
+        bsrc_zh = f"SEC 10-K 资产负债表（{str(b0['period_ending'])[:10]}）"
         if cash or debt:
-            fundamentals.append(
-                f"净现金 {_billions(cash - debt)}（现金+短投 {_billions(cash)} / 有息负债 {_billions(debt)}）"
-                f" — 来源：SEC 10-K 资产负债表（{str(b0['period_ending'])[:10]}）")
+            fundamentals.append(tt(
+                f"Net cash {_billions(cash - debt)} (cash + ST investments {_billions(cash)} / interest-bearing debt {_billions(debt)}) — Source: {bsrc_en}",
+                f"净现金 {_billions(cash - debt)}（现金+短投 {_billions(cash)} / 有息负债 {_billions(debt)}） — 来源：{bsrc_zh}"))
         eq = _num(b0.get("total_common_equity"))
         if eq:
-            fundamentals.append(f"归母股东权益 {_billions(eq)} — 来源：SEC 10-K 资产负债表（{str(b0['period_ending'])[:10]}）")
+            fundamentals.append(tt(
+                f"Common shareholders' equity {_billions(eq)} — Source: {bsrc_en}",
+                f"归母股东权益 {_billions(eq)} — 来源：{bsrc_zh}"))
         c0 = csh.sort_values("period_ending", ascending=False).iloc[0]
         ocf, capex = _num(c0.get("net_cash_from_operating_activities")), _num(c0.get("purchase_of_plant_property_and_equipment"))
+        csrc = tt("SEC 10-K cash-flow statement", "SEC 10-K 现金流量表")
         if ocf is not None:
             fcf = ocf - abs(capex or 0)
-            fundamentals.append(
-                f"{fy} 经营现金流 {_billions(ocf)}、资本开支 {_billions(abs(capex or 0))}"
-                f" → 自由现金流 {_billions(fcf)} — 来源：SEC 10-K 现金流量表")
+            fundamentals.append(tt(
+                f"{fy} operating cash flow {_billions(ocf)}, capex {_billions(abs(capex or 0))} → free cash flow {_billions(fcf)} — Source: {csrc}",
+                f"{fy} 经营现金流 {_billions(ocf)}、资本开支 {_billions(abs(capex or 0))} → 自由现金流 {_billions(fcf)} — 来源：{csrc}"))
         bb, dv = _num(c0.get("repurchase_of_common_equity")), _num(c0.get("payment_of_dividends"))
         if bb or dv:
-            fundamentals.append(
-                f"{fy} 股东回报：回购 {_billions(abs(bb or 0))}、分红 {_billions(abs(dv or 0))} — 来源：SEC 10-K 现金流量表")
+            fundamentals.append(tt(
+                f"{fy} shareholder returns: buybacks {_billions(abs(bb or 0))}, dividends {_billions(abs(dv or 0))} — Source: {csrc}",
+                f"{fy} 股东回报：回购 {_billions(abs(bb or 0))}、分红 {_billions(abs(dv or 0))} — 来源：{csrc}"))
         shares = _num(i0.get("weighted_ave_diluted_shares_os"))
         if shares and price:
-            fundamentals.append(
-                f"总市值约 {_billions(shares * price)}（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价")
+            fundamentals.append(tt(
+                f"Market cap ≈ {_billions(shares * price)} (fiscal-year weighted diluted shares × last price) — Source: SEC 10-K shares × CBOE price",
+                f"总市值约 {_billions(shares * price)}（按年报加权摊薄股本折算现价） — 来源：SEC 10-K 股本 × CBOE 现价"))
     except Exception as e:
         fails.append(f"sec:{type(e).__name__}")
         print(f"⚠ SEC 财务块失败（{type(e).__name__}），富卡降级为行情+技术面", file=sys.stderr)
@@ -171,8 +203,8 @@ def fetch_us_openbb(ticker):
             "fundamentals": fundamentals + [tech["range52"]], "news": news, "technicals": tech,
             "_source": "openbb:cboe+sec+nasdaq",
             "_providers": {**providers, "fetched_at": dt.datetime.now().isoformat(timespec="seconds")},
-            "_note": "M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；"
-                     f"降级块：{', '.join(fails) if fails else '无'}"}
+            "_note": tt(f"M1 rich card: CBOE quote/K-line/IV + SEC 10-K statements + nasdaq news, zero-key and Yahoo-free; degraded blocks: {', '.join(fails) if fails else 'none'}",
+                        f"M1 富卡：CBOE 报价/K线/IV + SEC 年报三表 + nasdaq 新闻，零 key 不经雅虎；降级块：{', '.join(fails) if fails else '无'}")}
     return card
 
 
@@ -198,16 +230,24 @@ def fetch_us_tencent(ticker):
     k = json.loads(get(f"https://web.ifzq.gtimg.cn/appstock/app/usfqkline/get?param=us{ticker}.OQ,day,,,320,qfq").decode())
     days = k["data"][f"us{ticker}.OQ"]["qfqday"]
     closes = [float(d[2]) for d in days]
-    fundamentals = [f"现价 {price} USD（日内 {chg_pct:+.2f}%） — 来源：腾讯美股行情（截至 {as_of}）"]
+    fundamentals = [tt(
+        f"Last {price} USD (intraday {chg_pct:+.2f}%) — Source: Tencent US quote (as of {as_of})",
+        f"现价 {price} USD（日内 {chg_pct:+.2f}%） — 来源：腾讯美股行情（截至 {as_of}）")]
     if mcap_b > 0 and pe:
-        fundamentals.append(f"总市值约 ${mcap_b:.1f}B、滚动市盈率约 {pe:.1f} 倍 — 来源：同上")
+        fundamentals.append(tt(
+            f"Market cap ≈ ${mcap_b:.1f}B, trailing P/E ≈ {pe:.1f}x — Source: same",
+            f"总市值约 ${mcap_b:.1f}B、滚动市盈率约 {pe:.1f} 倍 — 来源：同上"))
     elif mcap_b > 0:
-        fundamentals.append(f"总市值约 ${mcap_b:.1f}B — 来源：同上")
-    tech = _tech_from_closes(closes, "腾讯前复权日线（320 日窗口）")
+        fundamentals.append(tt(
+            f"Market cap ≈ ${mcap_b:.1f}B — Source: same",
+            f"总市值约 ${mcap_b:.1f}B — 来源：同上"))
+    tech = _tech_from_closes(closes, tt("Tencent adjusted daily bars (320-day window)", "腾讯前复权日线（320 日窗口）"))
     fundamentals.append(tech["range52"])
     return {"ticker": ticker, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": [], "technicals": tech,
-            "_source": "tencent-gtimg", "_note": "Tier2 国内直连：报价+K线真实；财务明细与新闻缺失（需 yfinance 通道）"}
+            "_source": "tencent-gtimg", "_note": tt(
+                "Tier2 CN-direct: real quote + K-line; fundamentals detail and news missing (needs the yfinance path)",
+                "Tier2 国内直连：报价+K线真实；财务明细与新闻缺失（需 yfinance 通道）")}
 
 
 def fetch_us_via_relay(ticker):
@@ -244,46 +284,45 @@ def fetch_us(ticker):
     as_of = hist.index[-1].strftime("%Y-%m-%d")
 
     f, fundamentals = [], []
-    def add(text, src):
-        fundamentals.append(f"{text} — 来源：{src}（截至 {as_of}）")
+    def add(text_en, text_zh, src):
+        fundamentals.append(tt(f"{text_en} — Source: {src} (as of {as_of})",
+                               f"{text_zh} — 来源：{src}（截至 {as_of}）"))
     if info.get("marketCap"):
-        add(f"总市值 ${info['marketCap'] / 1e9:.0f}B", "yfinance/marketCap")
+        add(f"Market cap ${info['marketCap'] / 1e9:.0f}B", f"总市值 ${info['marketCap'] / 1e9:.0f}B", "yfinance/marketCap")
     if info.get("revenueGrowth") is not None:
-        add(f"营收同比 {pct(info['revenueGrowth'])}", "yfinance/revenueGrowth")
+        add(f"Revenue YoY {pct(info['revenueGrowth'])}", f"营收同比 {pct(info['revenueGrowth'])}", "yfinance/revenueGrowth")
     if info.get("grossMargins") is not None:
-        add(f"毛利率 {pct(info['grossMargins']).replace('+', '')}", "yfinance/grossMargins")
+        add(f"Gross margin {pct(info['grossMargins']).replace('+', '')}", f"毛利率 {pct(info['grossMargins']).replace('+', '')}", "yfinance/grossMargins")
     if info.get("operatingMargins") is not None:
-        add(f"营业利润率 {pct(info['operatingMargins']).replace('+', '')}", "yfinance/operatingMargins")
+        add(f"Operating margin {pct(info['operatingMargins']).replace('+', '')}", f"营业利润率 {pct(info['operatingMargins']).replace('+', '')}", "yfinance/operatingMargins")
     if info.get("returnOnEquity") is not None:
-        add(f"ROE {pct(info['returnOnEquity']).replace('+', '')}", "yfinance/returnOnEquity")
+        add(f"ROE {pct(info['returnOnEquity']).replace('+', '')}", f"ROE {pct(info['returnOnEquity']).replace('+', '')}", "yfinance/returnOnEquity")
     if info.get("freeCashflow"):
-        add(f"自由现金流 ${info['freeCashflow'] / 1e9:.1f}B", "yfinance/freeCashflow")
+        add(f"Free cash flow ${info['freeCashflow'] / 1e9:.1f}B", f"自由现金流 ${info['freeCashflow'] / 1e9:.1f}B", "yfinance/freeCashflow")
     if info.get("totalCash") and info.get("totalDebt"):
-        add(f"净现金 ${(info['totalCash'] - info['totalDebt']) / 1e9:.1f}B"
+        add(f"Net cash ${(info['totalCash'] - info['totalDebt']) / 1e9:.1f}B"
+            f" (cash {info['totalCash'] / 1e9:.1f}B / interest-bearing debt {info['totalDebt'] / 1e9:.1f}B)",
+            f"净现金 ${(info['totalCash'] - info['totalDebt']) / 1e9:.1f}B"
             f"（现金 {info['totalCash'] / 1e9:.1f}B / 有息负债 {info['totalDebt'] / 1e9:.1f}B）", "yfinance/totalCash,debt")
     if info.get("trailingPE"):
-        add(f"滚动市盈率 {info['trailingPE']:.1f} 倍", "yfinance/trailingPE")
+        add(f"Trailing P/E {info['trailingPE']:.1f}x", f"滚动市盈率 {info['trailingPE']:.1f} 倍", "yfinance/trailingPE")
 
     news = []
     try:
         for n in (t.news or [])[:3]:
             ts = dt.datetime.fromtimestamp(n.get("providerPublishTime", 0)).strftime("%Y-%m-%d")
-            news.append(f"{ts} {n.get('publisher', '?')}：{n.get('title', '')}")
+            news.append(f"{ts} {n.get('publisher', '?')}: {n.get('title', '')}")
     except Exception:
         pass
 
     close = hist["Close"]
-    sma60 = close.rolling(60).mean().iloc[-1]
-    mom20 = close.iloc[-1] / close.iloc[-21] - 1
-    vol30 = float(hist["Close"].pct_change().tail(30).std() * math.sqrt(252))
-    tech = {
-        "trend": f"现价 {'站稳' if close.iloc[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
-        "momentum": f"20 日动量 {pct(mom20)}",
-        "volatility": f"30 日年化波动 {vol30:.0%}",
-    }
+    tech = _tech_from_closes([float(x) for x in close],
+                             tt(f"yfinance daily bars (as of {as_of})", f"yfinance 日线（截至 {as_of}）"))
     return {"ticker": ticker, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": news, "technicals": tech,
-            "_source": "yfinance", "_note": "真实数据；新闻仅标题（摘要需另行授权源）"}
+            "_source": "yfinance", "_note": tt(
+                "Real data; news headlines only (summaries need a licensed source)",
+                "真实数据；新闻仅标题（摘要需另行授权源）")}
 
 
 def fetch_cn_tencent(code):
@@ -309,17 +348,26 @@ def fetch_cn_tencent(code):
     k = json.loads(get(f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,,,320,qfq").decode())
     days = k["data"][sym]["qfqday"] or k["data"][sym].get("day")
     closes = [float(d[2]) for d in days]
-    fundamentals = [f"现价 {price} CNY（日内 {chg_pct:+.2f}%） — 来源：腾讯 A 股行情（截至 {as_of}）"]
+    fundamentals = [tt(
+        f"Last {price} CNY (intraday {chg_pct:+.2f}%) — Source: Tencent A-share quote (as of {as_of})",
+        f"现价 {price} CNY（日内 {chg_pct:+.2f}%） — 来源：腾讯 A 股行情（截至 {as_of}）")]
     if mcap_yi:
-        line = f"总市值约 {mcap_yi:.0f} 亿元"
-        if pe: line += f"、市盈率(TTM)约 {pe:.1f} 倍"
-        if pb: line += f"、市净率约 {pb:.1f} 倍"
-        fundamentals.append(line + " — 来源：同上")
-    tech = _tech_from_closes(closes, "腾讯前复权日线（320 日窗口）")
+        line_zh = f"总市值约 {mcap_yi:.0f} 亿元"
+        line_en = f"Market cap ≈ CNY {mcap_yi:.1f}B"
+        if pe:
+            line_zh += f"、市盈率(TTM)约 {pe:.1f} 倍"
+            line_en += f", PE(TTM) ≈ {pe:.1f}x"
+        if pb:
+            line_zh += f"、市净率约 {pb:.1f} 倍"
+            line_en += f", PB ≈ {pb:.1f}x"
+        fundamentals.append(tt(line_en + " — Source: same", line_zh + " — 来源：同上"))
+    tech = _tech_from_closes(closes, tt("Tencent adjusted daily bars (320-day window)", "腾讯前复权日线（320 日窗口）"))
     fundamentals.append(tech["range52"])
     return {"ticker": code, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": [], "technicals": tech,
-            "_source": "tencent-gtimg", "_note": "A 股腾讯通道：报价+K线真实；财务明细与新闻缺失（东财通道限流时自动略过）"}
+            "_source": "tencent-gtimg", "_note": tt(
+                "A-share Tencent channel: real quote + K-line; fundamentals detail and news missing (auto-skipped when the EastMoney channel is throttled)",
+                "A 股腾讯通道：报价+K线真实；财务明细与新闻缺失（东财通道限流时自动略过）")}
 
 
 def fetch_cn(code):
@@ -330,43 +378,48 @@ def fetch_cn(code):
     price = round(float(hist["收盘"].iloc[-1]), 2)
     as_of = hist["日期"].iloc[-1]
     fundamentals = [
-        f"总市值 {int(d.get('总市值', 0)) / 1e8:.0f} 亿 — 来源：东财个股资料（截至 {as_of}）",
-        f"市盈率(TTM) {d.get('市盈率(TTM)', '?')} 倍 — 来源：同上",
-        f"行业 {d.get('行业', '?')} — 来源：同上",
+        tt(f"Market cap ≈ CNY {int(d.get('总市值', 0)) / 1e8:.1f}B — Source: EastMoney profile (as of {as_of})",
+           f"总市值 {int(d.get('总市值', 0)) / 1e8:.0f} 亿 — 来源：东财个股资料（截至 {as_of}）"),
+        tt(f"PE(TTM) {d.get('市盈率(TTM)', '?')}x — Source: same",
+           f"市盈率(TTM) {d.get('市盈率(TTM)', '?')} 倍 — 来源：同上"),
+        tt(f"Industry {d.get('行业', '?')} — Source: same",
+           f"行业 {d.get('行业', '?')} — 来源：同上"),
     ]
     try:
         fin = ak.stock_financial_abstract(symbol=code)
         latest = fin.iloc[:, :3]
-        fundamentals.append(f"近期财务摘要（最近报告期 {latest.columns[-1] if len(latest.columns) > 1 else '?'}）：营收/净利见数据卡 sidecar — 来源：东财财务摘要")
+        fundamentals.append(tt(
+            f"Recent financial abstract (latest period {latest.columns[-1] if len(latest.columns) > 1 else '?'}): revenue/net income in the data-card sidecar — Source: EastMoney financial abstract",
+            f"近期财务摘要（最近报告期 {latest.columns[-1] if len(latest.columns) > 1 else '?'}）：营收/净利见数据卡 sidecar — 来源：东财财务摘要"))
     except Exception:
         pass
     news = []
     try:
         for _, r in ak.stock_news_em(symbol=code).head(3).iterrows():
-            news.append(f"{str(r['发布时间'])[:10]} 东财：{r['新闻标题']}")
+            news.append(tt(f"{str(r['发布时间'])[:10]} EastMoney: {r['新闻标题']}",
+                           f"{str(r['发布时间'])[:10]} 东财：{r['新闻标题']}"))
     except Exception:
         pass
     close = hist["收盘"]
-    sma60 = close.rolling(60).mean().iloc[-1]
-    mom20 = close.iloc[-1] / close.iloc[-21] - 1
-    vol30 = float(hist["收盘"].pct_change().tail(30).std() * math.sqrt(252))
-    tech = {
-        "trend": f"现价 {'站稳' if close.iloc[-1] > sma60 else '跌破'} 60 日均线（SMA60={sma60:.2f}）",
-        "momentum": f"20 日动量 {mom20 * 100:+.1f}%",
-        "volatility": f"30 日年化波动 {vol30:.0%}",
-    }
+    tech = _tech_from_closes([float(x) for x in close],
+                             tt(f"EastMoney adjusted daily bars (as of {as_of})", f"东财日线（截至 {as_of}）"))
     return {"ticker": code, "as_of": str(as_of), "price": price,
             "fundamentals": fundamentals, "news": news, "technicals": tech,
-            "_source": "akshare(东财)", "_note": "真实数据；财务摘要字段随东财口径"}
+            "_source": "akshare(东财)", "_note": tt(
+                "Real data; financial-abstract fields follow EastMoney's own conventions",
+                "真实数据；财务摘要字段随东财口径")}
 
 
 def validate(card):
     for k in ("ticker", "as_of", "price", "fundamentals", "technicals"):
-        assert card.get(k), f"数据卡缺字段: {k}"
-    assert len(card["fundamentals"]) >= 3, "基本面数据不足 3 条，不足以开庭"
+        assert card.get(k), tt(f"data card missing field: {k}", f"数据卡缺字段: {k}")
+    assert len(card["fundamentals"]) >= 3, tt(
+        "fewer than 3 fundamentals — not enough to convene the committee",
+        "基本面数据不足 3 条，不足以开庭")
 
 
 def main():
+    global LANG
     ap = argparse.ArgumentParser()
     ap.add_argument("--ticker", required=True)
     ap.add_argument("--out", default=None, help="数据卡输出路径（缺省 cards/<ticker>.json）")
@@ -375,7 +428,10 @@ def main():
     ap.add_argument("--via-relay", action="store_true", help="经 SSH 中继跑 yfinance 全量（国内网络用）")
     ap.add_argument("--tier", choices=("auto", "openbb", "tencent", "yfinance"), default="auto",
                     help="auto=OpenBB 富卡失败转腾讯；openbb=强制富卡；tencent=腾讯 Tier2；yfinance=直连雅虎（需干净网络）")
+    ap.add_argument("--lang", choices=("en", "zh"), default=LANG,
+                    help="card language (default en)")
     args = ap.parse_args()
+    LANG = args.lang
     market = args.market
     if market == "auto":
         market = "cn" if args.ticker.isdigit() else "us"
@@ -384,10 +440,11 @@ def main():
         try:  # 东财增强（财务摘要/新闻），被限流时静默跳过
             import akshare as ak
             ndf = ak.stock_news_em(symbol=args.ticker).head(3)
-            card["news"] = [f"{str(d)[:10]} 东财：{h}" for d, h in zip(ndf["发布时间"].tolist(), ndf["新闻标题"].tolist())]
-            card["_note"] += "；新闻经东财增强"
+            card["news"] = [tt(f"{str(d)[:10]} EastMoney: {h}", f"{str(d)[:10]} 东财：{h}")
+                            for d, h in zip(ndf["发布时间"].tolist(), ndf["新闻标题"].tolist())]
+            card["_note"] += tt("; news via EastMoney", "；新闻经东财增强")
         except Exception as e:
-            print(f"⚠ 东财增强跳过（{type(e).__name__}）", file=sys.stderr)
+            print(f"⚠ EastMoney enrichment skipped ({type(e).__name__})", file=sys.stderr)
     elif args.via_relay:
         card = fetch_us_via_relay(args.ticker)
     elif args.tier == "tencent":
@@ -410,7 +467,8 @@ def main():
         os.makedirs(CARDS, exist_ok=True)
         out = os.path.join(CARDS, f"{args.ticker}.json")
     json.dump(card, open(out, "w"), ensure_ascii=False, indent=1)
-    print(f"card → {out} · {len(card['fundamentals'])} 条基本面 · {len(card['news'])} 条新闻 · 截至 {card['as_of']}")
+    print(tt(f"card → {out} · {len(card['fundamentals'])} fundamentals · {len(card['news'])} news · as of {card['as_of']}",
+             f"card → {out} · {len(card['fundamentals'])} 条基本面 · {len(card['news'])} 条新闻 · 截至 {card['as_of']}"))
     if args.committee:
         subprocess.run([sys.executable, os.path.join(KIT, "scripts", "tradingagents.py"),
                         "--ticker", args.ticker, "--data", out, "--save"])
