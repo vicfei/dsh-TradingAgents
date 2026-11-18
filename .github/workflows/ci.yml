@@ -166,6 +166,54 @@ jobs:
               ok += 1
           print(f"{ok} cards validated")
           EOF
+      - name: session svg renderer (pure, no network)
+        run: |
+          python3 - <<'EOF9'
+          import importlib.util, tempfile, os
+          spec = importlib.util.spec_from_file_location("rs", "scripts/render_session_svg.py")
+          RS = importlib.util.module_from_spec(spec); spec.loader.exec_module(RS)
+          memo = """# IC-MEMO · X · 2026-01-01
+
+```yaml
+ticker: X
+as_of: 2026-01-01
+decision: PASS
+confidence: 72
+```
+
+## 1 · Analyst notes
+- [A1] fact one
+- [A2] fact two
+
+### Bull
+- [B1] thesis
+
+### Bear
+- [R1] rebuttal
+
+## 3 · Guest critiques
+| Guest | Stance | Conviction |
+|---|---|---|
+| Warren Buffett | PASS | 72 |
+| Cathie Wood | BUY | 62 |
+
+## 5 · Portfolio manager verdict
+- Verdict **PASS** (confidence 72) — cites [G1]
+---
+*42s · 6 calls · 9,999 in / 4,444 out tokens · deepseek-chat · temperature=0 · data=X.json · not investment advice*
+"""
+          d = RS.parse(memo)
+          assert d["decision"] == "PASS" and len(d["guests"]) == 2
+          assert d["tags"]["analyst"]["A"] == 2 and d["tags"]["bull"]["B"] == 1
+          assert d["footer"][:4] == ("42", "6", "9,999", "4,444")
+          svg = RS.render(d, "t")
+          for n in ("PASS", "Warren Buffett", "BUY", "42s", "9,999 in / 4,444 out tokens"):
+              assert n in svg, n
+          memo2 = memo.replace(" · 9,999 in / 4,444 out tokens", "")  # legacy footer: calls only
+          svg2 = RS.render(RS.parse(memo2), "t")
+          assert "42s · 6 calls · deepseek" in svg2 and "tokens ·" not in svg2
+          print("session svg: PASS")
+          EOF9
       - name: npm bundle packs clean
         run: cd npm && npm pack --dry-run && rm -f *.tgz
       - name: bin entry syntax (node --check)
