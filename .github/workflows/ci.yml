@@ -169,39 +169,24 @@ jobs:
       - name: session svg renderer (pure, no network)
         run: |
           python3 - <<'EOF9'
-          import importlib.util, tempfile, os
+          import importlib.util
           spec = importlib.util.spec_from_file_location("rs", "scripts/render_session_svg.py")
           RS = importlib.util.module_from_spec(spec); spec.loader.exec_module(RS)
-          memo = """# IC-MEMO · X · 2026-01-01
-
-```yaml
-ticker: X
-as_of: 2026-01-01
-decision: PASS
-confidence: 72
-```
-
-## 1 · Analyst notes
-- [A1] fact one
-- [A2] fact two
-
-### Bull
-- [B1] thesis
-
-### Bear
-- [R1] rebuttal
-
-## 3 · Guest critiques
-| Guest | Stance | Conviction |
-|---|---|---|
-| Warren Buffett | PASS | 72 |
-| Cathie Wood | BUY | 62 |
-
-## 5 · Portfolio manager verdict
-- Verdict **PASS** (confidence 72) — cites [G1]
----
-*42s · 6 calls · 9,999 in / 4,444 out tokens · deepseek-chat · temperature=0 · data=X.json · not investment advice*
-"""
+          fence = chr(96) * 3
+          memo = "\n".join([
+              "# IC-MEMO · X · 2026-01-01", "",
+              fence + "yaml", "ticker: X", "as_of: 2026-01-01",
+              "decision: PASS", "confidence: 72", fence, "",
+              "## 1 · Analyst notes", "- [A1] fact one", "- [A2] fact two", "",
+              "### Bull", "- [B1] thesis", "",
+              "### Bear", "- [R1] rebuttal", "",
+              "## 3 · Guest critiques",
+              "| Guest | Stance | Conviction |", "|---|---|---|",
+              "| Warren Buffett | PASS | 72 |", "| Cathie Wood | BUY | 62 |", "",
+              "## 5 · Portfolio manager verdict",
+              "- Verdict **PASS** (confidence 72) — cites [G1]", "",
+              "---",
+              "*42s · 6 calls · 9,999 in / 4,444 out tokens · deepseek-chat · temperature=0 · data=X.json · not investment advice*", ""])
           d = RS.parse(memo)
           assert d["decision"] == "PASS" and len(d["guests"]) == 2
           assert d["tags"]["analyst"]["A"] == 2 and d["tags"]["bull"]["B"] == 1

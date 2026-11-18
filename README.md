@@ -16,6 +16,13 @@ guest seats split three ways — Buffett/Munger PASS@72, Lynch HOLD@55, Wood BUY
 risk officer logs the split as guardrail [G8], and the PM rules PASS@72 naming it.
 Replay: `asciinema play assets/demo.cast`*
 
+![session map](assets/session.svg)
+
+*The same session as a map — parsed from the archived IC-MEMO (`scripts/render_session_svg.py`,
+a product feature: every memo can render one): the pipeline with how much tagged evidence
+each stage produced, the guest split with stance colors and conviction bars, and the PM
+verdict banner.*
+
 ## Why this exists
 
 | | TradingAgents | ai-hedge-fund | **dsh-tradingagents** |
