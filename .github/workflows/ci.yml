@@ -184,6 +184,8 @@ jobs:
               "| Guest | Stance | Conviction |", "|---|---|---|",
               "| Warren Buffett | PASS | 72 |", "| Cathie Wood | BUY | 62 |", "",
               "## 5 · Portfolio manager verdict",
+              "# stray header the model emitted mid-body — must NOT reset sections",
+              "stray [G2] stays with the PM section", "",
               "- Verdict **PASS** (confidence 72) — cites [G1]", "",
               "---",
               "*42s · 6 calls · 9,999 in / 4,444 out tokens · deepseek-chat · temperature=0 · data=X.json · not investment advice*", ""])
