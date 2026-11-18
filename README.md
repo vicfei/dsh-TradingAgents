@@ -21,7 +21,8 @@ Replay: `asciinema play assets/demo.cast`*
 *The same session as a map — parsed from the archived IC-MEMO (`scripts/render_session_svg.py`,
 a product feature: every memo can render one): the pipeline with how much tagged evidence
 each stage produced, the guest split with stance colors and conviction bars, and the PM
-verdict banner.*
+verdict banner. (The map above shows a second real run: guests split PASS@72 / PASS@72 /
+HOLD@55 / OVERWEIGHT@62 — five-tier vocabulary in the wild — and the PM rules HOLD@58.)*
 
 ## Why this exists
 

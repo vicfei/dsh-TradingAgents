@@ -29,15 +29,27 @@ def parse(memo):
                    if m[0] != "Guest"]
     foot = re.search(r"\*(\d+)s · (\d+) calls(?: · ([\d,]+) in / ([\d,]+) out tokens)?(.*)\*", memo)
     d["footer"] = tuple((x or "") for x in (foot.groups() if foot else ("?", "?", None, None, "")))
+    # Line walker: only the known template headers switch sections — LLM memos
+    # contain stray '# ...'/'## ...' lines mid-body, and find()-based splitting
+    # shatters on them; stray lines stay in the current section.
+    switchers = (("### Bull rebuttal", "bull"), ("## 3", "guests"), ("Guest critiques", "guests"),
+                 ("## 4", "risk"), ("Risk guardrails", "risk"),
+                 ("## 5", "pm"), ("Portfolio manager verdict", "pm"),
+                 ("### Bull", "bull"), ("### Bear", "bear"), ("## 1", "analyst"))
     d["tags"] = {}
-    for header, key in (("## 1", "analyst"), ("### Bull", "bull"), ("### Bear", "bear"),
-                        ("Risk guardrails", "risk"), ("Guest critiques", "guests"), ("Portfolio manager verdict", "pm")):
-        i = memo.find(header)
-        if i < 0:
-            continue
-        j = min([x for x in (memo.find("## ", i + 1), memo.find("### ", i + 1), len(memo)) if x > 0])
-        seg = memo[i:j]
-        d["tags"][key] = {t: len(re.findall(rf"\[{t}\d", seg)) for t in "ABRGP" if re.findall(rf"\[{t}\d", seg)}
+    cur = None
+    for line in memo.splitlines():
+        for head, key in switchers:
+            if line.startswith(head):
+                cur = key
+                break
+        else:
+            if cur:
+                bucket = d["tags"].setdefault(cur, {})
+                for t in "ABRGP":
+                    n = len(re.findall(rf"\[{t}\d", line))
+                    if n:
+                        bucket[t] = bucket.get(t, 0) + n
     return d
 
 
@@ -72,7 +84,8 @@ def render(d, title):
         o.append(f'<rect x="{gx+16}" y="{yy-12}" width="86" height="20" rx="5" fill="{col}" opacity="0.18"/>')
         o.append(f'<text x="{gx+59}" y="{yy+2}" font-size="11" fill="{col}" text-anchor="middle">{esc(stance)}</text>')
         o.append(f'<rect x="{gx+112}" y="{yy-10}" width="{int(conv)*1.7}" height="10" rx="3" fill="{col}" opacity="0.55"/>')
-        o.append(f'<text x="{gx+116+int(conv)*1.7}" y="{yy}" font-size="11" fill="{C["fg"]}">{esc(name)} @{conv}</text>')
+        nx = min(gx + 112 + int(conv) * 1.7 + 6, gx + 470 - 176)  # keep the row inside the panel
+        o.append(f'<text x="{int(nx)}" y="{yy}" font-size="11" fill="{C["fg"]}">{esc(name)} @{conv}</text>')
     vx, vy, vw = 520, 172, 416
     o.append(f'<rect x="{vx}" y="{vy}" width="{vw}" height="{gh}" rx="10" fill="{C["panel"]}" stroke="{C.get(d["decision"], C["line"])}" stroke-width="1.6"/>')
     o.append(f'<text x="{vx+18}" y="{vy+28}" font-size="12" fill="{C["accent"]}">PORTFOLIO MANAGER VERDICT</text>')
