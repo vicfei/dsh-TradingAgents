@@ -296,6 +296,12 @@ def main():
                     help="debate rounds: each adds one bear cross-exam + one bull response (default 1 keeps the cost profile)")
     ap.add_argument("--html", action="store_true", help="also render a single-file HTML memo (issue #4)")
     args = ap.parse_args()
+    if args.ticker != "DEMO" and os.path.abspath(args.data) == os.path.abspath(
+            os.path.join(KIT, "data", "demo", "DEMO.json")):
+        sys.exit(f"refused honestly -- ticker {args.ticker} with the default DEMO card would "
+                 "mislabel synthetic data as a real verdict. Either fetch a real card first "
+                 f"(scripts/fetch_card.py --ticker {args.ticker}) and pass --data, "
+                 "or use --ticker DEMO for the offline synthetic smoke.")
     LANG = args.lang
     MAX_CALLS = args.max_calls
     t = lambda k, **kw: T[k][LANG].format(**kw) if kw else T[k][LANG]
