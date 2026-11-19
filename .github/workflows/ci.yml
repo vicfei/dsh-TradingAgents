@@ -16,6 +16,12 @@ jobs:
         with: { node-version: "22" }
       - name: engine syntax
         run: python3 -m py_compile scripts/tradingagents.py scripts/fetch_card.py scripts/ledger.py
+        # S1 guard: ticker != DEMO with the default DEMO card must refuse (no mislabeled synthetic verdicts)
+        - name: demo-card guard unit check
+          run: |
+            set -e
+            OUT=$(python3 scripts/tradingagents.py --ticker AAPL --save 2>&1 || true)
+            echo "$OUT" | grep -q "mislabel synthetic data" 
       - name: settlement math discipline (pure, no network)
         run: |
           python3 - <<'EOF'
