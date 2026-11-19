@@ -17,6 +17,36 @@ jobs:
       - name: engine syntax
         run: python3 -m py_compile scripts/tradingagents.py scripts/fetch_card.py scripts/ledger.py
         # S1 guard: ticker != DEMO with the default DEMO card must refuse (no mislabeled synthetic verdicts)
+        - name: family-bridge converter unit check
+          run: |
+            set -e
+            python3 - <<'EOF'
+            import json, sys
+            sys.path.insert(0, "scripts")
+            import from_trail
+            trail = {"schema": "research-trail/1", "question": "q",
+                     "datasets": {"X": {"source": "tencent-ifzq", "adjustment": "qfq",
+                                        "date_range": ["2026-01-01", "2026-11-19"], "bars": 321,
+                                        "coverage_gaps": []}},
+                     "stats": {"X": {"last": 100.0, "ret20": 0.05, "ret60": {"unavailable": "short"},
+                                     "vol30": 0.2, "dd_from_120d_peak": -0.1, "vol_z20": -1.0,
+                                     "rsi14": 55.0, "macd_hist": 0.5, "above_sma60": True}},
+                     "backtests": {"X": {"trades": 4, "sum_strategy": -0.15, "train": {}, "holdout": {},
+                                         "oos_note": "apriori"}},
+                     "findings": "prior interpretation"}
+            assert from_trail.is_trail(trail)
+            card = from_trail.convert(trail, "X")
+            assert card["ticker"] == "X" and card["price"] == 100.0
+            assert card["technicals"]["ret60"] is None
+            assert card["unavailable_fields"]["ret60"].startswith("short")
+            assert "PRIOR LLM INTERPRETATION" in card["research_note"]["status"]
+            assert card["_source"]["schema"] == "research-trail/1"
+            try:
+                from_trail.convert(trail, "NOPE"); raise SystemExit("should have refused")
+            except SystemExit as e:
+                assert "not in the trail" in str(e)
+            print("family-bridge converter OK")
+            EOF
         - name: demo-card guard unit check
           run: |
             set -e

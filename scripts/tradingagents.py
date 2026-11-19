@@ -308,6 +308,12 @@ def main():
     p = lambda k: GUEST_PERSONAS[k][LANG] if LANG == "zh" else GUEST_PERSONAS[k]["en"]
 
     card = json.load(open(args.data))
+    try:  # family bridge (S4-A): a dsh-vibe-trading trail converts to a card on the fly
+        import from_trail
+        if from_trail.is_trail(card):
+            card = from_trail.convert(card, args.ticker if args.ticker != "DEMO" else None)
+    except ImportError:
+        pass
     guests = (list(GUEST_PERSONAS) if args.guests == "all"
               else [g.strip() for g in args.guests.split(",") if g.strip() in GUEST_PERSONAS])
     past_context = ""
