@@ -107,6 +107,21 @@ Every session emits an [IC-MEMO](templates/IC-MEMO.md): decision yaml head, tagg
 fact layer, full debate, guardrails, and a verdict that must name its influences.
 Unresolved dissent is recorded, never deleted. Spec evolution lives in `docs/`.
 
+## The family bridge (0.3.0)
+
+dsh-vibe-trading research trails feed this committee directly:
+
+```bash
+python3 scripts/vibe_research.py --save --question "..." --symbols sh600519,sh000001   # dsh-vibe-trading
+tradingagents --data trails/<name>/r1.json --ticker sh600519 --save                     # this repo
+```
+
+The trail's deterministic computed layer (stats, OOS backtest segments,
+source metadata) enters as covenant-safe evidence; its findings ride as a
+research note conspicuously marked **PRIOR LLM INTERPRETATION — context
+only, never data**. Live E2E: a real Moutai trail → OVERWEIGHT@58 with the
+4-trade win-rate dismissed as statistically empty.
+
 ## Status & roadmap
 
 v1 engine shipped (npm 0.1.1, English-first): 6-role committee + guest seats + OpenBB
