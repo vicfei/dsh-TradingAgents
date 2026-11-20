@@ -94,20 +94,56 @@ def _closes_tencent(symbol, start, end):
     import urllib.request
     sym = symbol if not symbol.isdigit() else ("sh" if symbol.startswith(("6", "5")) else "sz") + symbol
     sym = {"000001.SS": "sh000001", "399001.SZ": "sz399001"}.get(symbol, sym)  # index aliases
-    url = f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,{start},{end},320,qfq"
+    if sym.isalpha():  # US tickers: us endpoint + us-prefixed symbol (upstream returns boundary bars only — best-effort)
+        sym, ep = "us" + sym, "usfqkline"
+    else:
+        ep = "fqkline"
+    url = f"https://web.ifzq.gtimg.cn/appstock/app/{ep}/get?param={sym},day,{start},{end},320,qfq"
     raw = urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15).read()
-    data = json.loads(raw)["data"][sym]
-    days = data.get("qfqday") or data.get("day") or data.get("kline") or []
+    node = json.loads(raw).get("data") or {}
+    if not isinstance(node, dict) or sym not in node:  # unknown-symbol responses carry a list — fail cleanly
+        raise ValueError(f"no kline data for {sym} from tencent ({ep})")
+    days = node[sym].get("qfqday") or node[sym].get("day") or node[sym].get("kline") or []
     return {d[0][:10].replace("/", "-"): float(d[2]) for d in days}
 
 
+def _closes_yahoo(symbol, start, end):
+    """US fallback #2: Yahoo chart API, rotating both query hosts (S4: both
+    free channels rate-limit; the settle loop retries the next day anyway)."""
+    import urllib.request
+    last = None
+    for host in ("query1", "query2"):
+        url = (f"https://{host}.finance.yahoo.com/v8/finance/chart/{symbol}"
+               f"?period1={_unix(start)}&period2={_unix(end)}&interval=1d")
+        try:
+            raw = urllib.request.urlopen(urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}), timeout=15).read()
+            res = json.loads(raw)["chart"]["result"][0]
+            ts = res.get("timestamp") or []
+            closes = res["indicators"]["quote"][0]["close"]
+            return {dt.date.fromtimestamp(t).isoformat(): float(c)
+                    for t, c in zip(ts, closes) if c is not None}
+        except Exception as exc:
+            last = exc
+    raise last
+
+
+def _unix(iso):
+    import calendar
+    return calendar.timegm(dt.date.fromisoformat(iso).timetuple())
+
+
 def closes_for(ticker, start, end):
-    market = "cn" if ticker.isdigit() else "us"
-    sym = ticker if market == "us" else ticker
+    market = "cn" if (ticker.isdigit() or ticker.lower().startswith(("sh", "sz"))) else "us"
+    if market == "cn":
+        return _closes_tencent(ticker, start, end), market
     try:
-        return _closes_openbb(sym, start, end), market
+        return _closes_openbb(ticker, start, end), market
     except Exception:
-        return _closes_tencent(sym, start, end), market
+        try:
+            return _closes_yahoo(ticker, start, end), market
+        except Exception:
+            return _closes_tencent(ticker, start, end), market  # best-effort; may raise cleanly
 
 
 def settle_return(stock, bench, decision_date, holding=HOLDING_DAYS, today=None):
