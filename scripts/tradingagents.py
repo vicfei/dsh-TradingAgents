@@ -167,8 +167,8 @@ T = {
         "en": "\n\nTrack record — prior settled decisions and lessons (cite them as [T#] where they move you):\n",
         "zh": "\n\n战绩台账——既往已结算判决与教训（若影响你须引用为 [T#]）：\n",
     },
-    "footer": {"en": "*{t}s · {n} calls · {ti:,} in / {to:,} out tokens · deepseek-chat · temperature=0 · data={f} · not investment advice*",
-               "zh": "*耗时 {t}s · {n} 次调用 · {ti:,} 入 / {to:,} 出 token · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*"},
+    "footer": {"en": "*{t}s · {n} calls · {ti:,} in / {to:,} out tokens · deepseek-chat · temperature=0 · data={f} · not investment advice*\n★ github.com/vicfei/dsh-TradingAgents",
+               "zh": "*耗时 {t}s · {n} 次调用 · {ti:,} 入 / {to:,} 出 token · deepseek-chat · temperature=0 · 数据={f} · 非投资建议*\n★ github.com/vicfei/dsh-TradingAgents"},
 }
 
 
