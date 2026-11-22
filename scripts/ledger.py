@@ -303,6 +303,7 @@ def main():
     ap.add_argument("--index", action="store_true", help="(re)index memos/*.md into pending entries")
     ap.add_argument("--settle", action="store_true", help="settle due pending entries (prices + reflection)")
     ap.add_argument("--context", help="print the PM track-record block for a ticker")
+    ap.add_argument("--report", action="store_true", help="write docs/track-record/<today>.md snapshot (settled real entries; pending listed separately)")
     ap.add_argument("--lang", choices=("en", "zh"), default=LANG)
     args = ap.parse_args()
     LANG = args.lang
@@ -320,6 +321,26 @@ def main():
         elif not settled:
             print(tt(f"pending: {len(incomplete)} window(s) not fully traded · {len(skipped)} fetch failure(s) — all retried next pass",
                      f"待结算：{len(incomplete)} 个窗口未走满 · {len(skipped)} 个取数失败——均下次重试"), file=sys.stderr)
+    if args.report:
+        import datetime as _dt
+        ledger = load()
+        rows_real = [e for e in ledger["entries"] if not e.get("pending") and not e.get("synthetic") and not e.get("review")]
+        rows_pending = [e for e in ledger["entries"] if e.get("pending") and not e.get("synthetic")]
+        out_dir = os.path.join(KIT, "docs", "track-record")
+        os.makedirs(out_dir, exist_ok=True)
+        path = os.path.join(out_dir, _dt.date.today().isoformat() + ".md")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("# Track record — real settlements (auto-snapshot)\n\n")
+            f.write("> Settlement discipline: entry at the first close strictly after the decision date; exit 5 sessions later; never scores the live bar; unresolved windows stay pending. PASS/REVIEW never settle. Not investment advice.\n\n")
+            if rows_real:
+                f.write("| ticker | decision | conf | entry | exit | raw | alpha |\n|---|---|---|---|---|---|---|\n")
+                for e in rows_real:
+                    f.write(f"| {e['ticker']} | {e['decision']} | {e['confidence']} | {e.get('entry_date','')} | {e.get('exit_date','')} | {e.get('raw_return',''):+.1%} | {e.get('alpha',''):+.1%} |\n" if isinstance(e.get('raw_return'), (int, float)) else f"| {e['ticker']} | {e['decision']} | {e['confidence']} | — | — | — | — |\n")
+            else:
+                f.write("_No real entry has settled yet — the first settles when its 5-session window completes._\n")
+            if rows_pending:
+                f.write(f"\nPending real entries ({len(rows_pending)}): " + ", ".join(f"{e['ticker']}@{e['date']}" for e in rows_pending) + "\n")
+        print(tt(f"report → {path}", f"报告 → {path}"))
     if args.context:
         print(context_block(args.context))
 
