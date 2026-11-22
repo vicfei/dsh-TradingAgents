@@ -185,3 +185,16 @@ issue → branch → PR.
 5. **Open-format positioning**: IC-MEMO as a standalone spec (the VIDEO.md play)
 6. **Track record as content**: from R2 on, every settlement batch is exclusive
    publishing material
+
+## S5 · First blood & the format play (2026-11-22 → 12-06)
+
+→ full plan: [docs/plan-S5.md](docs/plan-S5.md). Snapshot: 0.3.0 live ·
+downloads 1,594/wk (family #1) · awesome PR #16227 MERGED · settle cron
+live but bleeding (6/6 entries pending — skip-retry bug, S5.0 first).
+
+- [ ] S5.0 settle integrity repair + unblock all 6 entries + first real
+      track-record snapshot (closes #32)
+- [ ] S5.1 content from real data + star dashboard day-7 review (#34)
+- [ ] S5.2 IC-MEMO open format repo + Python SDK (#35 pick B → #24;
+      family-precedent de-risked by FORMAT.md play + dsh-uigen surface)
+- [ ] S5.3 genui quick wins (IC-MEMO summary card via ui_compose)
