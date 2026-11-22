@@ -133,17 +133,51 @@ def _unix(iso):
     return calendar.timegm(dt.date.fromisoformat(iso).timetuple())
 
 
+def _expected_bars(start, end):
+    a, b = dt.date.fromisoformat(start), dt.date.fromisoformat(end)
+    return max(1, int((b - a).days * 5 / 7))  # ~weekdays in range
+
+
+def _sufficient(closes, start, end, channel):
+    """S5.0 guard: a series that spans a multi-week range with a handful of
+    points is boundary garbage, not daily data (tencent usfqkline returns
+    exactly 2 bars) — return it as success and settle silently starves."""
+    need = max(3, _expected_bars(start, end) // 3)
+    if len(closes) < need:
+        raise ValueError(f"starved: {len(closes)} bars from {channel} (need >={need} for {start}..{end})")
+    return closes
+
+
+def _closes_relay(symbol, start, end):
+    """US fallback #3: yfinance on the SG relay node (S5.0). CBOE 403 and
+    Yahoo 429 are region-throttles from this host; the fleet's standing
+    pattern (fetch_us_via_relay) already runs yfinance there."""
+    import subprocess as sp
+    key = os.path.expanduser("~/.ssh/id_ed25519_gwpull")
+    host = "ubuntu@43.134.172.70"
+    code = ("import json\n"
+            "import yfinance as yf\n"
+            f"df = yf.Ticker({symbol!r}).history(start={start!r}, end={end!r}, interval='1d')\n"
+            "print(json.dumps({str(i)[:10]: float(c) for i, c in zip(df.index, df['Close']) if c == c}))\n")
+    r = sp.run(["ssh", "-i", key, "-o", "ConnectTimeout=12", host, "python3", "-"],
+               input=code, capture_output=True, text=True, timeout=150)
+    if r.returncode != 0 or not r.stdout.strip().startswith("{"):
+        raise ValueError(f"relay failed: {((r.stderr or r.stdout) or 'no output')[-90:]}")
+    return json.loads(r.stdout)
+
+
 def closes_for(ticker, start, end):
     market = "cn" if (ticker.isdigit() or ticker.lower().startswith(("sh", "sz"))) else "us"
     if market == "cn":
-        return _closes_tencent(ticker, start, end), market
-    try:
-        return _closes_openbb(ticker, start, end), market
-    except Exception:
+        return _sufficient(_closes_tencent(ticker, start, end), start, end, "tencent"), market
+    last = None
+    for name, fn in (("cboe", _closes_openbb), ("yahoo", _closes_yahoo), ("sg-relay", _closes_relay),
+                     ("tencent-us", lambda s, a, b: _closes_tencent(s, a, b))):
         try:
-            return _closes_yahoo(ticker, start, end), market
-        except Exception:
-            return _closes_tencent(ticker, start, end), market  # best-effort; may raise cleanly
+            return _sufficient(fn(ticker, start, end), start, end, name), market
+        except Exception as exc:
+            last = exc
+    raise last  # clean failure: settle records a retriable skip, never starved silence
 
 
 def settle_return(stock, bench, decision_date, holding=HOLDING_DAYS, today=None):
@@ -209,7 +243,7 @@ def reflect(entry, memo_text):
 
 def settle(only=None):
     ledger = load()
-    settled, skipped = [], []
+    settled, skipped, incomplete = [], [], []
     for e in ledger["entries"]:
         if not e.get("pending") or e.get("synthetic") or e.get("review"):
             continue
@@ -229,7 +263,8 @@ def settle(only=None):
             skipped.append((e["ticker"], d, f"{type(exc).__name__}: {str(exc)[:60]}"))
             continue
         if res is None:
-            continue  # window not fully traded yet — retry next pass
+            incomplete.append((e["ticker"], d, f"window not fully traded ({len([x for x in stock if x > d])} sessions after decision)"))
+            continue  # genuine pending — retry next pass
         e.update(res)
         e.update({"benchmark": BENCHMARKS[market], "holding_days": HOLDING_DAYS, "pending": False})
         try:
@@ -239,7 +274,7 @@ def settle(only=None):
             e["reflection"] = tt("(reflection unavailable this pass)", "（本轮反思不可得）")
         settled.append((e["ticker"], d, f"{e['alpha']:+.1%}"))
     save(ledger)
-    return settled, skipped
+    return settled, skipped, incomplete
 
 
 def context_block(ticker, limit=5):
@@ -275,13 +310,16 @@ def main():
         n = len(index(rebuild=True)["entries"])
         print(tt(f"ledger indexed: {n} entries → {LEDGER}", f"台账重建：{n} 条 → {LEDGER}"))
     if args.settle:
-        settled, skipped = settle()
+        settled, skipped, incomplete = settle()
         for t, d, a in settled:
             print(tt(f"settled {t} {d}: alpha {a}", f"已结算 {t} {d}: alpha {a}"))
         for t, d, r in skipped:
-            print(tt(f"skipped {t} {d}: {r}", f"跳过 {t} {d}: {r}"), file=sys.stderr)
-        if not settled:
+            print(tt(f"skipped {t} {d}: {r} (retried next pass)", f"跳过 {t} {d}: {r}（下次重试）"), file=sys.stderr)
+        if not settled and not skipped and not incomplete:
             print(tt("nothing due for settlement", "没有到期待结算条目"))
+        elif not settled:
+            print(tt(f"pending: {len(incomplete)} window(s) not fully traded · {len(skipped)} fetch failure(s) — all retried next pass",
+                     f"待结算：{len(incomplete)} 个窗口未走满 · {len(skipped)} 个取数失败——均下次重试"), file=sys.stderr)
     if args.context:
         print(context_block(args.context))
 
