@@ -1,3 +1,10 @@
+## 0.3.1 (2026-11-23)
+
+- **settle integrity (S5.0, PR #42)**: starvation guard (boundary-bar garbage from degraded US channels raises a retriable skip instead of silently starving), SG-relay third US tier, truthful settle reporting (settled / retriable fetch failures / windows-not-fully-traded — "nothing due" only when nothing is pending). Live before/after: `nothing due` → `3 starved · 2 windows not fully traded · 6/6 pending preserved`.
+- **IC-MEMO internal schema (PR #43)**: `scripts/validate_memo.py` — yaml head, closed verdict vocabulary, role tags, footer contract; CI gates the real archive (7/7 GREEN). The spec lives at docs/ic-memo/ (folded back from the cancelled standalone repo, 2026-11-23).
+- **dsh-ui verdict card (PR #44)**: `scripts/verdict_card.py` — a memo's inline projection (stat + top [G#] quotes + not-investment-advice) as a ```dsh-ui block; CI lints cards through dsh-uigen compose() (genui 0.16.0 whitelist).
+- **track-record snapshot (PR #45)**: `tradingagents report` / `scripts/ledger.py --report` — one-command docs/track-record/<date>.md the moment the first real settlement lands.
+
 # Changelog
 
 ## 0.3.0 (2026-11-20) — ledger integrity + the family bridge
