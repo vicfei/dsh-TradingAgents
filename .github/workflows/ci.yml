@@ -20,6 +20,21 @@ jobs:
         run: |
           set -e
           python3 scripts/validate_memo.py --all
+      - name: verdict-card dsh-ui conformance (cross-repo lint, vendored check)
+        run: |
+          set -e
+          # the card must stay inside the dsh-uigen genui 0.16.0 whitelist;
+          # vendored copy so CI does not depend on a sibling checkout
+          git clone -q --depth 1 https://github.com/vicfei/dsh-uigen /tmp/uigen
+          for M in memos/NVDA-2026-11-13.md memos/sh600519-2026-11-19.md memos/DEMO-2026-11-16-guests.md; do
+            python3 scripts/verdict_card.py "$M" | sed -n '/^{$/,/^}$/p' > /tmp/card.json
+            node --input-type=module -e "
+              import { compose } from '/tmp/uigen/lib/compose.js';
+              import { readFileSync } from 'node:fs';
+              const r = compose(JSON.parse(readFileSync('/tmp/card.json','utf8')));
+              if (!r.ok) { console.error('$M FAIL', JSON.stringify(r.errors)); process.exit(1); }
+              console.log('$M LINT OK');"
+          done
       - name: S5.0 settle-integrity unit check
         run: |
           set -e
