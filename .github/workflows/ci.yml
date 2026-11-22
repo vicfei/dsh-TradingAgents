@@ -16,6 +16,10 @@ jobs:
         with: { node-version: "22" }
       - name: engine syntax
         run: python3 -m py_compile scripts/tradingagents.py scripts/fetch_card.py scripts/ledger.py
+      - name: IC-MEMO schema gate (validate the real archive)
+        run: |
+          set -e
+          python3 scripts/validate_memo.py --all
       - name: S5.0 settle-integrity unit check
         run: |
           set -e

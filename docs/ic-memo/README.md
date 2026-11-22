@@ -20,3 +20,8 @@
   the closed verdict vocabulary (normalize casing; out-of-vocabulary →
   REVIEW), validate tag uniqueness/citation integrity. No external-SDK
   ambitions until the product earns gravity.
+
+- **Validator (shipped 2026-11-23)**: `scripts/validate_memo.py` — runs on
+  the real archive in CI (`--all`); parses the yaml head, enforces the
+  closed verdict vocabulary, checks role-tag presence and the footer
+  contract. First run validated all 7 archived memos GREEN.
