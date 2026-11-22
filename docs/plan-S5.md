@@ -154,3 +154,23 @@ per the standing non-goal exception.
 - [ ] two posts out (owner-gated) + star dashboard live + day-7 review done
 - [ ] ic-memo repo: SPEC + site + Python SDK adopted in-repo + genui card
 - [ ] 0.3.1 on npm (settle fix live for users)
+
+---
+
+# S5 amendment v3 (owner ruling, 2026-11-23)
+
+**"标准的话语权来自采用"** — the ic-memo standalone spec-repo play is
+**cancelled and folded back**: the spec now lives at
+[docs/ic-memo/](ic-memo/) as the committee's internal format documentation
+(the former vicfei/ic-memo repo is archived; the npm name stays squatted).
+S5.2 is rescoped:
+
+- WAS: ic-memo repo + Python SDK + multi-language ecosystem play.
+- NOW: **in-repo schema discipline** — a memo validator (parse + verdict
+  vocabulary + tag integrity) as a CI gate on this repo's own memos; the
+  open-format/ecosystem push is deferred **until adoption evidence exists**
+  (stars/community uptake — the S5.1 content track is the path that earns
+  the voice; posting was deferred 2026-11-22 and resumes on owner's call).
+- The dsh-ui verdict card (old S5.3) remains valid in-repo work (rendering
+  our own memos inline via dsh-uigen) — it is product surface, not
+  standard-setting.
