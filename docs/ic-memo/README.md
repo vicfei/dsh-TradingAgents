@@ -25,3 +25,10 @@
   the real archive in CI (`--all`); parses the yaml head, enforces the
   closed verdict vocabulary, checks role-tag presence and the footer
   contract. First run validated all 7 archived memos GREEN.
+
+- **dsh-ui verdict card (shipped 2026-11-23)**: `scripts/verdict_card.py` —
+  the memo's inline projection (ticker · decision · confidence · top
+  guardrail quotes · not-investment-advice line) as a ```dsh-ui block;
+  renders via dsh-genui on hosts that have it, plain markdown otherwise.
+  CI lints every card through dsh-uigen's compose() (genui 0.16.0
+  whitelist conformance).
