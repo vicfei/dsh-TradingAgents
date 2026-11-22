@@ -16,42 +16,92 @@ jobs:
         with: { node-version: "22" }
       - name: engine syntax
         run: python3 -m py_compile scripts/tradingagents.py scripts/fetch_card.py scripts/ledger.py
-        # S1 guard: ticker != DEMO with the default DEMO card must refuse (no mislabeled synthetic verdicts)
-        - name: family-bridge converter unit check
-          run: |
-            set -e
-            python3 - <<'EOF'
-            import json, sys
-            sys.path.insert(0, "scripts")
-            import from_trail
-            trail = {"schema": "research-trail/1", "question": "q",
-                     "datasets": {"X": {"source": "tencent-ifzq", "adjustment": "qfq",
-                                        "date_range": ["2026-01-01", "2026-11-19"], "bars": 321,
-                                        "coverage_gaps": []}},
-                     "stats": {"X": {"last": 100.0, "ret20": 0.05, "ret60": {"unavailable": "short"},
-                                     "vol30": 0.2, "dd_from_120d_peak": -0.1, "vol_z20": -1.0,
-                                     "rsi14": 55.0, "macd_hist": 0.5, "above_sma60": True}},
-                     "backtests": {"X": {"trades": 4, "sum_strategy": -0.15, "train": {}, "holdout": {},
-                                         "oos_note": "apriori"}},
-                     "findings": "prior interpretation"}
-            assert from_trail.is_trail(trail)
-            card = from_trail.convert(trail, "X")
-            assert card["ticker"] == "X" and card["price"] == 100.0
-            assert card["technicals"]["ret60"] is None
-            assert card["unavailable_fields"]["ret60"].startswith("short")
-            assert "PRIOR LLM INTERPRETATION" in card["research_note"]["status"]
-            assert card["_source"]["schema"] == "research-trail/1"
-            try:
-                from_trail.convert(trail, "NOPE"); raise SystemExit("should have refused")
-            except SystemExit as e:
-                assert "not in the trail" in str(e)
-            print("family-bridge converter OK")
-            EOF
-        - name: demo-card guard unit check
-          run: |
-            set -e
-            OUT=$(python3 scripts/tradingagents.py --ticker AAPL --save 2>&1 || true)
-            echo "$OUT" | grep -q "mislabel synthetic data" 
+      - name: S5.0 settle-integrity unit check
+        run: |
+          set -e
+          python3 - <<'SETTLE_EOF'
+          import os, sys, tempfile
+          os.environ["TRADINGAGENTS_LEDGER"] = os.path.join(tempfile.mkdtemp(), "ledger.json")
+          os.environ["TRADINGAGENTS_MEMOS"] = tempfile.mkdtemp()
+          sys.path.insert(0, "scripts")
+          import ledger as L
+          FAILS = []
+          def check(name, cond):
+              print(("PASS" if cond else "FAIL"), name)
+              if not cond: FAILS.append(name)
+          try:
+              L._sufficient({"2026-11-01": 1, "2026-11-20": 2}, "2026-11-01", "2026-11-22", "t")
+              check("guard rejects 2-bar boundary garbage", False)
+          except ValueError as e:
+              check("guard rejects 2-bar boundary garbage", "starved" in str(e))
+          good = {f"2026-11-{d:02d}": 100.0 + d for d in range(1, 21)}
+          check("guard passes 15+ real bars", L._sufficient(good, "2026-11-01", "2026-11-22", "t") == good)
+          stock = {f"2026-11-{d:02d}": 100.0 + d for d in (13, 14, 17, 18, 19, 20, 23, 24)}
+          bench = {k: 200.0 for k in stock}
+          res = L.settle_return(stock, bench, "2026-11-13", holding=5, today="2026-11-25")
+          check("entry strictly after decision", res["entry_date"] == "2026-11-14")
+          check("exit = 5 sessions later", res["exit_date"] == "2026-11-23")
+          check("raw return math (4dp)", abs(res["raw_return"] - round(123.0/114.0 - 1, 4)) < 1e-9)
+          check("exit==today never scored", L.settle_return(stock, bench, "2026-11-13", holding=5, today="2026-11-23") is None)
+          short = dict(stock); [short.pop(k) for k in ("2026-11-23", "2026-11-24")]
+          check("incomplete window -> None pending", L.settle_return(short, bench, "2026-11-13", holding=5, today="2026-11-25") is None)
+          L.reflect = lambda e, m: "r"
+          open(os.path.join(os.environ["TRADINGAGENTS_MEMOS"], "m.md"), "w").write("x")
+          L.save({"entries": [
+              {"ticker": "OK1", "date": "2026-11-01", "decision": "BUY", "confidence": "60", "memo": "m.md", "pending": True, "synthetic": False},
+              {"ticker": "BAD", "date": "2026-11-01", "decision": "BUY", "confidence": "60", "memo": "m.md", "pending": True, "synthetic": False},
+              {"ticker": "SLOW", "date": "2026-11-19", "decision": "HOLD", "confidence": "55", "memo": "m.md", "pending": True, "synthetic": False}]})
+          full = {f"2026-11-{d:02d}": 100 + d for d in range(1, 22)}
+          def fake(t, s, e):
+              if t == "BAD": raise ValueError("starved: 2 bars from tencent-us (need >=5)")
+              return (dict(full), "us")
+          L.closes_for = fake
+          settled, skipped, incomplete = L.settle()
+          check("healthy entry settles", any(t == "OK1" for t, d, a in settled))
+          check("starved -> retriable skip", any(t == "BAD" and "starved" in r for t, d, r in skipped))
+          check("incomplete counted, stays pending", any(t == "SLOW" for t, d, r in incomplete))
+          by = {e["ticker"]: e for e in L.load()["entries"]}
+          check("settled: pending=False + resolution_date", by["OK1"]["pending"] is False and by["OK1"].get("resolution_date"))
+          check("starved + incomplete stay pending", by["BAD"]["pending"] and by["SLOW"]["pending"])
+          print("settle-integrity:", "GREEN" if not FAILS else "RED (%d)" % len(FAILS))
+          sys.exit(1 if FAILS else 0)
+          SETTLE_EOF
+      # S1 guard: ticker != DEMO with the default DEMO card must refuse (no mislabeled synthetic verdicts)
+      - name: family-bridge converter unit check
+        run: |
+          set -e
+          python3 - <<'EOF'
+          import json, sys
+          sys.path.insert(0, "scripts")
+          import from_trail
+          trail = {"schema": "research-trail/1", "question": "q",
+                   "datasets": {"X": {"source": "tencent-ifzq", "adjustment": "qfq",
+                                      "date_range": ["2026-01-01", "2026-11-19"], "bars": 321,
+                                      "coverage_gaps": []}},
+                   "stats": {"X": {"last": 100.0, "ret20": 0.05, "ret60": {"unavailable": "short"},
+                                   "vol30": 0.2, "dd_from_120d_peak": -0.1, "vol_z20": -1.0,
+                                   "rsi14": 55.0, "macd_hist": 0.5, "above_sma60": True}},
+                   "backtests": {"X": {"trades": 4, "sum_strategy": -0.15, "train": {}, "holdout": {},
+                                       "oos_note": "apriori"}},
+                   "findings": "prior interpretation"}
+          assert from_trail.is_trail(trail)
+          card = from_trail.convert(trail, "X")
+          assert card["ticker"] == "X" and card["price"] == 100.0
+          assert card["technicals"]["ret60"] is None
+          assert card["unavailable_fields"]["ret60"].startswith("short")
+          assert "PRIOR LLM INTERPRETATION" in card["research_note"]["status"]
+          assert card["_source"]["schema"] == "research-trail/1"
+          try:
+              from_trail.convert(trail, "NOPE"); raise SystemExit("should have refused")
+          except SystemExit as e:
+              assert "not in the trail" in str(e)
+          print("family-bridge converter OK")
+          EOF
+      - name: demo-card guard unit check
+        run: |
+          set -e
+          OUT=$(python3 scripts/tradingagents.py --ticker AAPL --save 2>&1 || true)
+          echo "$OUT" | grep -q "mislabel synthetic data" 
       - name: settlement math discipline (pure, no network)
         run: |
           python3 - <<'EOF'
