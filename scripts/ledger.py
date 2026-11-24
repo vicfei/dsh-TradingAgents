@@ -380,7 +380,7 @@ def main():
         path = os.path.join(out_dir, _dt.date.today().isoformat() + ".md")
         with open(path, "w", encoding="utf-8") as f:
             f.write("# Track record — real settlements (auto-snapshot)\n\n")
-            f.write("> Settlement discipline: entry at the first close strictly after the decision date; exit 5 sessions later; never scores the live bar; unresolved windows stay pending. PASS/REVIEW never settle. Not investment advice.\n\n")
+            f.write("> Settlement discipline: entry at the first close strictly after the decision date; exit 5 sessions later; never scores the live bar; unresolved windows stay pending. REVIEW entries are not verdicts and never settle. Not investment advice.\n\n")
             if rows_real:
                 f.write("| ticker | decision | conf | entry | exit | raw | alpha |\n|---|---|---|---|---|---|---|\n")
                 for e in rows_real:
