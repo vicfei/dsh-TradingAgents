@@ -166,12 +166,61 @@ def _closes_relay(symbol, start, end):
     return json.loads(r.stdout)
 
 
+def _closes_sina(symbol, start, end):
+    """US fallback #4: sina US daily kline — CN-native, no key, full history
+    in one shot (~1MB). 2026-11-24 outage replacement: cboe 403 / yahoo 429 /
+    sg-relay yfinance rate-limited / tencent-usfqkline returns boundary
+    garbage only. Cross-checked against eastmoney qfq on 2026-11-23 closes
+    (NVDA/AAPL/SPY identical); recent bars are split-adjusted, and only a
+    corporate action inside the 5-session window could skew raw vs qfq."""
+    import urllib.request
+    url = f"https://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol={symbol}"
+    raw = urllib.request.urlopen(urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0", "Referer": "https://finance.sina.com.cn/"}), timeout=30).read()
+    rows = json.loads(raw)
+    if not isinstance(rows, list) or not rows:
+        raise ValueError(f"no kline data for {symbol} from sina")
+    return {r["d"]: float(r["c"]) for r in rows if start <= r["d"] <= end}
+
+
+def _closes_eastmoney(symbol, start, end):
+    """US fallback #5: eastmoney push2his daily kline — no key, qfq-adjusted
+    (same semantics as tencent qfq). CAUTION: the CDN blackholes bursty IPs
+    mid-request (TLS ok, then instant close), so each market probe falls back
+    to the SG relay hop on failure; keep request volume low. Market prefix
+    probed NASDAQ→NYSE→AMEX (SPY lives on 107); data:null just tries the next."""
+    import shlex
+    import subprocess as sp
+    import urllib.request
+    key = os.path.expanduser("~/.ssh/id_ed25519_gwpull")
+    host = "ubuntu@43.134.172.70"
+    for mkt in ("105", "106", "107"):
+        url = (f"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={mkt}.{symbol}"
+               f"&fields1=f1,f2,f3&fields2=f51,f53&klt=101&fqt=1"
+               f"&beg={start.replace('-', '')}&end={end.replace('-', '')}")
+        remote = f"curl -s -m 15 {shlex.quote(url)} -H {shlex.quote('User-Agent: Mozilla/5.0')}"
+        for fetch in (
+            lambda: json.loads(urllib.request.urlopen(urllib.request.Request(
+                url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15).read()).get("data"),
+            lambda: json.loads(sp.run(["ssh", "-i", key, "-o", "ConnectTimeout=12", host, remote],
+                                      capture_output=True, text=True, timeout=40).stdout).get("data"),
+        ):
+            try:
+                data = fetch()
+            except Exception:
+                continue
+            if data and data.get("klines"):
+                return {k.split(",")[0]: float(k.split(",")[1]) for k in data["klines"]}
+    raise ValueError(f"no kline data for {symbol} from eastmoney (105/106/107, direct+relay)")
+
+
 def closes_for(ticker, start, end):
     market = "cn" if (ticker.isdigit() or ticker.lower().startswith(("sh", "sz"))) else "us"
     if market == "cn":
         return _sufficient(_closes_tencent(ticker, start, end), start, end, "tencent"), market
     last = None
     for name, fn in (("cboe", _closes_openbb), ("yahoo", _closes_yahoo), ("sg-relay", _closes_relay),
+                     ("sina", _closes_sina), ("eastmoney", _closes_eastmoney),
                      ("tencent-us", lambda s, a, b: _closes_tencent(s, a, b))):
         try:
             return _sufficient(fn(ticker, start, end), start, end, name), market
