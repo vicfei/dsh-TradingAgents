@@ -1,3 +1,7 @@
+## Unreleased
+
+- **US price channel rebuild (#47)**: all three US tiers fell at once on 2026-11-24 (cboe 403 region-throttle, yahoo 429, SG-relay yfinance rate-limited by Yahoo itself; tencent-usfqkline still returns boundary garbage only). Added **sina** as US fallback #4 — CN-native, no key, full history one-shot; 2026-11-23 closes cross-verified identical against eastmoney qfq (NVDA/AAPL/SPY). Added **eastmoney** (push2his, direct + SG-relay hop) as #5 — qfq semantics, but its CDN blackholes bursty IPs, so it stays a low-volume last resort.
+
 ## 0.3.1 (2026-11-23)
 
 - **settle integrity (S5.0, PR #42)**: starvation guard (boundary-bar garbage from degraded US channels raises a retriable skip instead of silently starving), SG-relay third US tier, truthful settle reporting (settled / retriable fetch failures / windows-not-fully-traded — "nothing due" only when nothing is pending). Live before/after: `nothing due` → `3 starved · 2 windows not fully traded · 6/6 pending preserved`.
