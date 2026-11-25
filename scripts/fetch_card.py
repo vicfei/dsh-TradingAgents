@@ -461,6 +461,61 @@ def fetch_cn_enrich(code, mkt, as_of=None):
     return fundamentals, news, skipped
 
 
+def chip_distribution(days, half_life=60):
+    """S6.3: chip-distribution approximation (筹码分布) from OHLCV — each
+    session's volume spread uniformly across its high–low range, sessions
+    exponentially decayed with a 60-session memory half-life. Assumption set
+    stated on the card: a volume-profile approximation, NOT exchange-reported
+    float data. Deterministic pure function — CI-tested. `days` rows follow
+    tencent fqkline order: [date, open, close, high, low, volume, ...]."""
+    import math
+    lam = math.log(2) / half_life
+    buckets, n = {}, len(days)
+    for i, d in enumerate(days):
+        c, h, l, v = float(d[2]), float(d[3]), float(d[4]), float(d[5])
+        w = v * math.exp(-lam * (n - 1 - i))
+        lo, hi = min(l, h), max(l, h)
+        if hi <= lo:
+            buckets[lo] = buckets.get(lo, 0.0) + w
+            continue
+        steps = max(2, min(50, int((hi - lo) / max(hi * 1e-4, 1e-6))))
+        for k in range(steps):
+            p = round(lo + (hi - lo) * (k + 0.5) / steps, 2)
+            buckets[p] = buckets.get(p, 0.0) + w / steps
+    prices = sorted(buckets)
+    total = sum(buckets.values())
+    avg = sum(p * buckets[p] for p in prices) / total
+    last_close = float(days[-1][2])
+    profit = sum(w for p, w in buckets.items() if p <= last_close) / total
+    acc, lo90 = 0.0, prices[0]
+    for p in prices:
+        acc += buckets[p]
+        if acc >= 0.05 * total:
+            lo90 = p
+            break
+    acc, hi90 = 0.0, prices[-1]
+    for p in prices:
+        acc += buckets[p]
+        if acc >= 0.95 * total:
+            hi90 = p
+            break
+    return {"profit_ratio": round(profit, 4), "avg_cost": round(avg, 2),
+            "cost_range_90": [round(lo90, 2), round(hi90, 2)],
+            "last_close": last_close, "half_life_sessions": half_life}
+
+
+def _chips_line(ch):
+    return tt(
+        f"Chip distribution (approx.; 320-day volume profile, {ch['half_life_sessions']}-session memory "
+        f"half-life; NOT exchange float data): {ch['profit_ratio']:.0%} of the volume-weighted cost basis "
+        f"sits at or below the last close (chip profit ratio), average cost ≈ {ch['avg_cost']}, "
+        f"90% cost range {ch['cost_range_90'][0]}–{ch['cost_range_90'][1]} — Source: derived from Tencent "
+        f"adjusted daily bars (OHLCV)",
+        f"筹码分布（近似；320 日成交量剖面、{ch['half_life_sessions']} 节点半衰期记忆；非交易所真实流通盘数据）："
+        f"成交量加权成本不高于最近收盘的比例（获利盘）约 {ch['profit_ratio']:.0%}，平均成本 ≈ {ch['avg_cost']}，"
+        f"90% 成本区间 {ch['cost_range_90'][0]}–{ch['cost_range_90'][1]} — 来源：由腾讯前复权日线（OHLCV）派生")
+
+
 def fetch_cn_tencent(code, as_of=None):
     """A 股腾讯通道（国内直连首选；东财/akshare 易对云 IP 限流）。
     as_of（S6.0-4）：K 线/技术面/52 周按日截断（fqkline 直传 start/end）；活报价与
@@ -485,8 +540,10 @@ def fetch_cn_tencent(code, as_of=None):
             f"最近收盘 {price:.2f} CNY（截至 {k_as_of}；请求日 {as_of}） — 来源：腾讯前复权日线")]
         tech = _tech_from_closes(closes, tt(f"Tencent adjusted daily bars (as of {k_as_of})", f"腾讯前复权日线（截至 {k_as_of}）"))
         fundamentals.append(tech["range52"])
+        chips = chip_distribution(days)  # derived only from bars ≤ as_of — point-in-time safe
+        fundamentals.append(_chips_line(chips))
         return {"ticker": code, "as_of": k_as_of, "price": round(price, 2),
-                "fundamentals": fundamentals, "news": [], "technicals": tech,
+                "fundamentals": fundamentals, "news": [], "technicals": tech, "chips": chips,
                 "_source": "tencent-gtimg(as-of)", "_note": tt(
                     "Historical mode: bars/technicals/52w truncated at the date; live quote, PE/PB/mcap and news withheld (no point-in-time source); fundamentals cut by report period",
                     "历史模式：K 线/技术面/52 周按日截断；活报价、PE/PB/市值与新闻扣留（无时点源）；财务按报告期截断")}
@@ -522,8 +579,10 @@ def fetch_cn_tencent(code, as_of=None):
         fundamentals.append(tt(line_en + " — Source: same", line_zh + " — 来源：同上"))
     tech = _tech_from_closes(closes, tt("Tencent adjusted daily bars (320-day window)", "腾讯前复权日线（320 日窗口）"))
     fundamentals.append(tech["range52"])
+    chips = chip_distribution(days)
+    fundamentals.append(_chips_line(chips))
     return {"ticker": code, "as_of": as_of, "price": price,
-            "fundamentals": fundamentals, "news": [], "technicals": tech,
+            "fundamentals": fundamentals, "news": [], "technicals": tech, "chips": chips,
             "_source": "tencent-gtimg", "_note": tt(
                 "A-share Tencent channel: real quote + K-line (base card)",
                 "A 股腾讯通道：报价+K线真实（基础卡）")}
