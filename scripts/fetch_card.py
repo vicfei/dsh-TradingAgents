@@ -361,6 +361,97 @@ def fetch_us(ticker):
                 "真实数据；新闻仅标题（摘要需另行授权源）")}
 
 
+def _em_json(url):
+    import gzip, urllib.request
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "Mozilla/5.0", "Referer": "https://emweb.securities.eastmoney.com/",
+        "Accept-Encoding": "identity"})  # some emweb edges gzip anyway — decompress on sight
+    raw = urllib.request.urlopen(req, timeout=15).read()
+    if raw[:2] == b"\x1f\x8b":
+        raw = gzip.decompress(raw)
+    return json.loads(raw)
+
+
+def fetch_cn_enrich(code, mkt, as_of=None):
+    """S6.0-1: CN rich-card enrichment on eastmoney-family free endpoints
+    (emweb F10 + np-listapi — a different CDN edge than push2his, verified
+    live 2026-11-24). Three independent blocks, each degrading alone; the
+    2026-11-24 audit caught the old akshare path silently shipping
+    news=empty under cloud-IP throttling. Under as_of: fundamentals are
+    filtered by REPORT_DATE with the filing lag stated honestly (no
+    announcement dates available); news is withheld (no point-in-time
+    source — same discipline as the US as-of path)."""
+    fundamentals, news, skipped = [], [], []
+    ex_code = {"sh": "SH", "sz": "SZ", "bj": "BJ"}.get(mkt, "SH") + code
+    try:  # ── block 1 · financial abstract (report period named) ──
+        rows = _em_json(f"https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/"
+                        f"ZYZBAjaxNew?type=0&code={ex_code}").get("data") or []
+        if as_of:
+            rows = [r for r in rows if str(r.get("REPORT_DATE", ""))[:10] <= as_of]
+        r = rows[0] if rows else None
+        if r:
+            period, rtype = str(r.get("REPORT_DATE", ""))[:10], r.get("REPORT_TYPE", "?")
+
+            def yi(v):
+                try:
+                    return f"{float(v) / 1e8:,.0f}"
+                except (TypeError, ValueError):
+                    return "?"
+            def pct_s(v, signed=True):
+                try:
+                    return f"{float(v):+.1f}%" if signed else f"{float(v):.1f}%"
+                except (TypeError, ValueError):
+                    return "?"
+            lag = tt(" (report period; this source carries no filing dates — filing lag not covered)",
+                     "（报告期口径；本源无申报日期，申报滞后未计入）") if as_of else ""
+            fundamentals.append(tt(
+                f"Latest report {period} ({rtype}): revenue CNY {yi(r.get('TOTALOPERATEREVE'))}B"
+                f" ({pct_s(r.get('TOTALOPERATEREVETZ'))} YoY), parent net profit CNY"
+                f" {yi(r.get('PARENTNETPROFIT'))}B ({pct_s(r.get('PARENTNETPROFITTZ'))} YoY)"
+                f" — Source: EastMoney F10 financial abstract{lag}",
+                f"最近报告期 {period}（{rtype}）：营收 {yi(r.get('TOTALOPERATEREVE'))} 亿元"
+                f"（同比 {pct_s(r.get('TOTALOPERATEREVETZ'))}），归母净利"
+                f" {yi(r.get('PARENTNETPROFIT'))} 亿元（同比 {pct_s(r.get('PARENTNETPROFITTZ'))}）"
+                f" — 来源：东财 F10 财务摘要{lag}"))
+            fundamentals.append(tt(
+                f"ROE(weighted) {pct_s(r.get('ROEJQ'), signed=False)}, gross margin "
+                f"{pct_s(r.get('XSMLL'), signed=False)}, net margin {pct_s(r.get('XSJLL'), signed=False)}, "
+                f"EPS {r.get('EPSJB', '?')} CNY, BPS {r.get('BPS', '?')} CNY — Source: same",
+                f"ROE(加权) {pct_s(r.get('ROEJQ'), signed=False)}、毛利率 {pct_s(r.get('XSMLL'), signed=False)}、"
+                f"净利率 {pct_s(r.get('XSJLL'), signed=False)}、每股收益 {r.get('EPSJB', '?')} 元、"
+                f"每股净资产 {r.get('BPS', '?')} 元 — 来源：同上"))
+        else:
+            skipped.append("fundamentals")
+    except Exception as e:
+        skipped.append(f"fundamentals:{type(e).__name__}")
+    try:  # ── block 2 · industry classification ──
+        j = (_em_json("https://emweb.securities.eastmoney.com/PC_HSF10/CompanySurvey/"
+                      f"PageAjax?code={ex_code}").get("jbzl") or [{}])[0]
+        sw, csrc = j.get("EM2016"), j.get("INDUSTRYCSRC1")
+        if sw or csrc:
+            fundamentals.append(tt(
+                f"Industry: SW {sw or '?'}; CSRC {csrc or '?'} — Source: EastMoney company survey",
+                f"行业：申万 {sw or '?'}；证监会 {csrc or '?'} — 来源：东财公司概况"))
+        else:
+            skipped.append("industry")
+    except Exception as e:
+        skipped.append(f"industry:{type(e).__name__}")
+    if not as_of:  # ── block 3 · news (withheld under as-of: no point-in-time source) ──
+        try:
+            mkt_no = {"sh": "1", "sz": "0"}.get(mkt, "0")
+            lst = (_em_json(f"https://np-listapi.eastmoney.com/comm/web/getListInfo"
+                            f"?client=web&mTypeAndCode={mkt_no}.{code}&type=1&ps=5&p=1")
+                   .get("data") or {}).get("list") or []
+            news = [tt(f"{str(a.get('Art_ShowTime', ''))[:16]} EastMoney: {a.get('Art_Title', '?')}",
+                       f"{str(a.get('Art_ShowTime', ''))[:16]} 东财：{a.get('Art_Title', '?')}")
+                    for a in lst[:3]]
+            if not news:
+                skipped.append("news")
+        except Exception as e:
+            skipped.append(f"news:{type(e).__name__}")
+    return fundamentals, news, skipped
+
+
 def fetch_cn_tencent(code):
     """A 股腾讯通道（国内直连首选；东财/akshare 易对云 IP 限流）。"""
     import re as _re, urllib.request
@@ -402,48 +493,21 @@ def fetch_cn_tencent(code):
     return {"ticker": code, "as_of": as_of, "price": price,
             "fundamentals": fundamentals, "news": [], "technicals": tech,
             "_source": "tencent-gtimg", "_note": tt(
-                "A-share Tencent channel: real quote + K-line; fundamentals detail and news missing (auto-skipped when the EastMoney channel is throttled)",
-                "A 股腾讯通道：报价+K线真实；财务明细与新闻缺失（东财通道限流时自动略过）")}
+                "A-share Tencent channel: real quote + K-line (base card)",
+                "A 股腾讯通道：报价+K线真实（基础卡）")}
 
 
-def fetch_cn(code):
-    import akshare as ak
-    spot = ak.stock_individual_info_em(symbol=code)
-    d = {r["item"]: r["value"] for _, r in spot.iterrows()}
-    hist = ak.stock_zh_a_hist(symbol=code, period="daily", start_date=(dt.date.today() - dt.timedelta(days=400)).strftime("%Y%m%d"), adjust="qfq")
-    price = round(float(hist["收盘"].iloc[-1]), 2)
-    as_of = hist["日期"].iloc[-1]
-    fundamentals = [
-        tt(f"Market cap ≈ CNY {int(d.get('总市值', 0)) / 1e8:.1f}B — Source: EastMoney profile (as of {as_of})",
-           f"总市值 {int(d.get('总市值', 0)) / 1e8:.0f} 亿 — 来源：东财个股资料（截至 {as_of}）"),
-        tt(f"PE(TTM) {d.get('市盈率(TTM)', '?')}x — Source: same",
-           f"市盈率(TTM) {d.get('市盈率(TTM)', '?')} 倍 — 来源：同上"),
-        tt(f"Industry {d.get('行业', '?')} — Source: same",
-           f"行业 {d.get('行业', '?')} — 来源：同上"),
-    ]
-    try:
-        fin = ak.stock_financial_abstract(symbol=code)
-        latest = fin.iloc[:, :3]
-        fundamentals.append(tt(
-            f"Recent financial abstract (latest period {latest.columns[-1] if len(latest.columns) > 1 else '?'}): revenue/net income in the data-card sidecar — Source: EastMoney financial abstract",
-            f"近期财务摘要（最近报告期 {latest.columns[-1] if len(latest.columns) > 1 else '?'}）：营收/净利见数据卡 sidecar — 来源：东财财务摘要"))
-    except Exception:
-        pass
-    news = []
-    try:
-        for _, r in ak.stock_news_em(symbol=code).head(3).iterrows():
-            news.append(tt(f"{str(r['发布时间'])[:10]} EastMoney: {r['新闻标题']}",
-                           f"{str(r['发布时间'])[:10]} 东财：{r['新闻标题']}"))
-    except Exception:
-        pass
-    close = hist["收盘"]
-    tech = _tech_from_closes([float(x) for x in close],
-                             tt(f"EastMoney adjusted daily bars (as of {as_of})", f"东财日线（截至 {as_of}）"))
-    return {"ticker": code, "as_of": str(as_of), "price": price,
-            "fundamentals": fundamentals, "news": news, "technicals": tech,
-            "_source": "akshare(东财)", "_note": tt(
-                "Real data; financial-abstract fields follow EastMoney's own conventions",
-                "真实数据；财务摘要字段随东财口径")}
+def normalize_cn(ticker):
+    """S6.0-5: one entry grammar everywhere — bare codes and sh/sz/bj-prefixed
+    forms both accepted (the prefix must be followed by digits, so the bare US
+    ticker BJ stays US). Pure function — CI-tested."""
+    t = ticker.strip().lower()
+    if t[:2] in ("sh", "sz", "bj") and t[2:].isdigit():
+        return t[2:], t[:2]
+    if not ticker.isdigit():
+        raise SystemExit(f"unrecognized ticker: {ticker} (CN wants a bare code or an sh/sz/bj-prefixed one)")
+    code = ticker
+    return code, ("sh" if code.startswith(("6", "5")) else ("bj" if code.startswith(("4", "8")) else "sz"))
 
 
 def validate(card):
@@ -473,20 +537,29 @@ def main():
     as_of = parse_as_of(args.date)
     LANG = args.lang
     market = args.market
+    t_low = args.ticker.lower()
+    looks_cn = args.ticker.isdigit() or (t_low[:2] in ("sh", "sz", "bj") and t_low[2:].isdigit())
     if market == "auto":
-        market = "cn" if args.ticker.isdigit() else "us"
+        market = "cn" if looks_cn else "us"
+    if market == "cn" and not looks_cn:
+        raise SystemExit(f"--market cn given but {args.ticker!r} is not a CN ticker "
+                         "(bare numeric code, or sh/sz/bj-prefixed)")
     if as_of and (market != "us" or args.via_relay or args.tier in ("tencent", "yfinance")):
         raise SystemExit("--date (as-of) is currently supported on the OpenBB rich-card path (US) only")
     if market == "cn":
-        card = fetch_cn_tencent(args.ticker)
-        try:  # 东财增强（财务摘要/新闻），被限流时静默跳过
-            import akshare as ak
-            ndf = ak.stock_news_em(symbol=args.ticker).head(3)
-            card["news"] = [tt(f"{str(d)[:10]} EastMoney: {h}", f"{str(d)[:10]} 东财：{h}")
-                            for d, h in zip(ndf["发布时间"].tolist(), ndf["新闻标题"].tolist())]
-            card["_note"] += tt("; news via EastMoney", "；新闻经东财增强")
-        except Exception as e:
-            print(f"⚠ EastMoney enrichment skipped ({type(e).__name__})", file=sys.stderr)
+        code, mkt = normalize_cn(args.ticker)
+        card = fetch_cn_tencent(code)
+        card["ticker"] = args.ticker  # the memo/ledger keep the caller's form
+        f_enrich, news, skipped = fetch_cn_enrich(code, mkt)
+        card["fundamentals"] += f_enrich
+        card["news"] = news
+        if skipped:
+            card["_note"] += tt(f"; enrichment blocks skipped: {', '.join(skipped)}",
+                                f"；增强块跳过：{', '.join(skipped)}")
+            print(f"⚠ CN enrichment partially skipped: {', '.join(skipped)}", file=sys.stderr)
+        else:
+            card["_note"] += tt("; enriched: F10 fundamentals + industry + news (EastMoney family)",
+                                "；已增强：F10 财务摘要 + 行业 + 新闻（东财系端点）")
     elif args.via_relay:
         card = fetch_us_via_relay(args.ticker)
     elif args.tier == "tencent":
