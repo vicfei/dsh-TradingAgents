@@ -387,7 +387,16 @@ def fetch_cn_enrich(code, mkt, as_of=None):
         rows = _em_json(f"https://emweb.securities.eastmoney.com/PC_HSF10/NewFinanceAnalysis/"
                         f"ZYZBAjaxNew?type=0&code={ex_code}").get("data") or []
         if as_of:
-            rows = [r for r in rows if str(r.get("REPORT_DATE", ""))[:10] <= as_of]
+            # statutory-deadline gate (CSRC): Q1/Q3 due 1 month, H1 2 months,
+            # annual 4 months after period end. Conservative — an early filer's
+            # fresher report is missed, but a report can never leak into a date
+            # before it was legally public (period-end filtering alone did).
+            def statutory_deadline(period):
+                y, m = int(period[:4]), int(period[5:7])
+                months = {3: 1, 9: 1, 6: 2, 12: 4}[m]
+                y2, m2 = (y + 1, 4) if m == 12 else (y, m + months)
+                return f"{y2:04d}-{m2:02d}-31"
+            rows = [r for r in rows if r.get("REPORT_DATE") and statutory_deadline(str(r["REPORT_DATE"])[:10]) <= as_of]
         r = rows[0] if rows else None
         if r:
             period, rtype = str(r.get("REPORT_DATE", ""))[:10], r.get("REPORT_TYPE", "?")
@@ -452,12 +461,35 @@ def fetch_cn_enrich(code, mkt, as_of=None):
     return fundamentals, news, skipped
 
 
-def fetch_cn_tencent(code):
-    """A 股腾讯通道（国内直连首选；东财/akshare 易对云 IP 限流）。"""
+def fetch_cn_tencent(code, as_of=None):
+    """A 股腾讯通道（国内直连首选；东财/akshare 易对云 IP 限流）。
+    as_of（S6.0-4）：K 线/技术面/52 周按日截断（fqkline 直传 start/end）；活报价与
+    其衍生估值（PE/PB/市值）整块扣留——无时点源，与美股 as-of 纪律同款。"""
     import re as _re, urllib.request
     sym = ("sh" if code.startswith(("6", "5")) else ("bj" if code.startswith(("4", "8")) else "sz")) + code
     def get(url):
         return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"}), timeout=10).read()
+    if as_of:  # historical bars only, hard-truncated at the requested date
+        anchor = dt.date.fromisoformat(as_of)
+        k_url = (f"https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param={sym},day,"
+                 f"{(anchor - dt.timedelta(days=400)).isoformat()},{as_of},320,qfq")
+        k = json.loads(get(k_url).decode())
+        days = k["data"][sym]["qfqday"] or k["data"][sym].get("day")
+        if not days or days[-1][0][:10] > as_of:
+            raise SystemExit(f"tencent CN bars do not cover the as-of date {as_of}")
+        closes = [float(d[2]) for d in days]
+        k_as_of = days[-1][0][:10]
+        price = closes[-1]
+        fundamentals = [tt(
+            f"Last close {price:.2f} CNY (as of {k_as_of}; requested as-of date {as_of}) — Source: Tencent adjusted daily bars",
+            f"最近收盘 {price:.2f} CNY（截至 {k_as_of}；请求日 {as_of}） — 来源：腾讯前复权日线")]
+        tech = _tech_from_closes(closes, tt(f"Tencent adjusted daily bars (as of {k_as_of})", f"腾讯前复权日线（截至 {k_as_of}）"))
+        fundamentals.append(tech["range52"])
+        return {"ticker": code, "as_of": k_as_of, "price": round(price, 2),
+                "fundamentals": fundamentals, "news": [], "technicals": tech,
+                "_source": "tencent-gtimg(as-of)", "_note": tt(
+                    "Historical mode: bars/technicals/52w truncated at the date; live quote, PE/PB/mcap and news withheld (no point-in-time source); fundamentals cut by report period",
+                    "历史模式：K 线/技术面/52 周按日截断；活报价、PE/PB/市值与新闻扣留（无时点源）；财务按报告期截断")}
     q = get(f"https://qt.gtimg.cn/q={sym}").decode("gbk", "ignore")
     f = q.split("~")
     def to_f(i):
@@ -544,13 +576,14 @@ def main():
     if market == "cn" and not looks_cn:
         raise SystemExit(f"--market cn given but {args.ticker!r} is not a CN ticker "
                          "(bare numeric code, or sh/sz/bj-prefixed)")
-    if as_of and (market != "us" or args.via_relay or args.tier in ("tencent", "yfinance")):
-        raise SystemExit("--date (as-of) is currently supported on the OpenBB rich-card path (US) only")
+    if as_of and (args.via_relay or args.tier in ("tencent", "yfinance")):
+        raise SystemExit("--date (as-of) is supported on the OpenBB rich-card path (US) "
+                         "and the Tencent CN path (bars truncated; live quote/news withheld)")
     if market == "cn":
         code, mkt = normalize_cn(args.ticker)
-        card = fetch_cn_tencent(code)
+        card = fetch_cn_tencent(code, as_of)
         card["ticker"] = args.ticker  # the memo/ledger keep the caller's form
-        f_enrich, news, skipped = fetch_cn_enrich(code, mkt)
+        f_enrich, news, skipped = fetch_cn_enrich(code, mkt, as_of)
         card["fundamentals"] += f_enrich
         card["news"] = news
         if skipped:
