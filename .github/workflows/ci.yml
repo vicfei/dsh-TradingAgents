@@ -35,6 +35,27 @@ jobs:
               if (!r.ok) { console.error('$M FAIL', JSON.stringify(r.errors)); process.exit(1); }
               console.log('$M LINT OK');"
           done
+      - name: CN ticker normalization unit check
+        run: |
+          set -e
+          python3 - <<'CN_EOF'
+          import sys
+          sys.path.insert(0, "scripts")
+          import fetch_card as F
+          cases = {"600519": ("600519", "sh"), "sh600519": ("600519", "sh"),
+                   "000001": ("000001", "sz"), "sz000001": ("000001", "sz"),
+                   "300750": ("300750", "sz"), "430047": ("430047", "bj"),
+                   "bj430047": ("430047", "bj"), "510300": ("510300", "sh")}
+          for k, v in cases.items():
+              got = F.normalize_cn(k)
+              assert got == v, f"{k} -> {got}, want {v}"
+          try:
+              F.normalize_cn("NVDA")
+              raise AssertionError("NVDA should not normalize as CN")
+          except SystemExit:
+              pass
+          print("normalize_cn: 9/9 OK")
+          CN_EOF
       - name: S5.0 settle-integrity unit check
         run: |
           set -e
