@@ -128,6 +128,24 @@ T = {
         "zh": "你是风控官：不决策，只立护栏——仓位上限、失效触发器、必须重审的事件，每条 [G#]。",
     },
     "risk_guests": {"en": "\n\nGuest-seat summary:\n", "zh": "\n\n客座观点摘要：\n"},
+    "market_rules_cn": {
+        "en": ("\n\nMarket rules context (A-share; structural facts of the venue, not data-card "
+               "evidence — guardrails and size hints must respect them):\n"
+               "- T+1: shares bought today cannot be sold until the next session — an intraday "
+               "stop-loss is impossible; guardrails must be framed session-ahead.\n"
+               "- Price limits: ±10% main board; ±20% ChiNext (30xxxx) and STAR (68xxxx); ±30% BSE "
+               "(8xx/4xx/92x); ±5% ST/*ST. A limit-down day can trap an exit (no counterparty) — "
+               "invalidation triggers must consider limit-locked liquidity.\n"
+               "- Stamp duty 0.05% on sells (not buys); commission negotiable, typically low.\n"
+               "- Suspensions halt trading entirely; ST designation imposes position caps at most "
+               "brokers and a 5% band.\n"),
+        "zh": ("\n\n市场规则背景（A 股；交易场所的结构性事实，非数据卡证据——护栏与仓位提示必须遵守）：\n"
+               "- T+1：当日买入次一交易日方可卖出——日内止损不可行，护栏须按\"下一交易日\"口径立。\n"
+               "- 涨跌幅限制：主板 ±10%；创业板（30xxxx）与科创板（68xxxx）±20%；北交所（8xx/4xx/92x）±30%；ST/*ST ±5%。"
+               "跌停日可能锁死出场（无对手盘）——失效触发器须考虑涨跌停流动性。\n"
+               "- 印花税卖出 0.05%（买入不收）；佣金可议、通常较低。\n"
+               "- 停牌完全中断交易；ST 标的在多数券商有仓位上限且涨跌幅 5%。\n"),
+    },
     "pm": {
         "en": 'You are the portfolio manager: output JSON {"decision":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"name which [B#]/[R#]/[G#]/[T#]/guest seats persuaded or constrained you"}. The five tiers: BUY = strong conviction to enter or add; OVERWEIGHT = favorable, gradually increase exposure; HOLD = maintain, no action; UNDERWEIGHT = reduce exposure, take partial profits; SELL = exit or avoid. Conflict between the sides is not itself a reason for HOLD — weigh the cases and commit to the stronger one, sized by how decisively it wins. When the evidence is insufficient to rule, you must PASS — abstaining is a legitimate and honorable output; do not manufacture a direction to look decisive.',
         "zh": '你是组合经理：输出 JSON {"decision":"BUY|OVERWEIGHT|HOLD|UNDERWEIGHT|SELL|PASS","confidence":0-100,"size_hint":"..","invalidation":[..],"reasoning":"点名哪些 [B#]/[R#]/[G#]/[T#]/客座说服或约束了你"}。五档：BUY=强确信建仓或加仓；OVERWEIGHT=偏多逐步加仓；HOLD=维持不动；UNDERWEIGHT=减仓部分止盈；SELL=清仓或回避。多空冲突本身不是 HOLD 的理由——权衡后站更强一方，按胜出幅度定力度。证据不足以裁决时必须 PASS——弃权是合法且体面的输出，不要为显得果断硬造方向。',
@@ -324,6 +342,8 @@ def main():
         pass
     book = load_portfolio(args.portfolio) if args.portfolio else None  # three-state, issue #5
     holdings = render_portfolio(book, args.ticker)
+    tl = args.ticker.lower()
+    rules = t("market_rules_cn") if (args.ticker.isdigit() or (tl[:2] in ("sh", "sz", "bj") and tl[2:].isdigit())) else ""
     t0 = time.time()
     data = json.dumps(card, ensure_ascii=False, indent=1)
 
@@ -358,12 +378,14 @@ def main():
 
     risk = llm(t("risk"),
                f"{t('facts')}\n{a}{t('debate_digest')}\n{bull}\n{bear}"
-               + (t("risk_guests") + guest_digest if guest_digest else ""))
+               + (t("risk_guests") + guest_digest if guest_digest else "")
+               + rules)
     pm = llm(t("pm"),
              f"{t('facts')}\n{a}{t('bull_case')}{bull}{t('bear_case')}{bear}{t('bull_rebuttal')}{reb}"
              + (t("pm_guests") + guest_digest if guest_digest else "")
              + (t("track_record") + past_context if past_context else "")
              + ("\n\n" + holdings + "\n" if holdings else "")
+             + rules
              + t("guardrails") + risk,
              json_out=True)
 
@@ -395,6 +417,7 @@ confidence: {verdict.get('confidence')}
 size_hint: {verdict.get('size_hint')}
 invalidation: {json.dumps(verdict.get('invalidation', []), ensure_ascii=False)}
 portfolio: {('flat' if not book['positions'] else f"{len(book['positions'])} position(s)") if book is not None else 'unknown'}
+market_rules: {('a-share (T+1 / limit bands / ST / stamp duty) injected into risk+PM' if rules else 'none')}
 ```
 
 {t('h1_analyst')}
