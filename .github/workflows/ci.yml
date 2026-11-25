@@ -56,6 +56,30 @@ jobs:
               pass
           print("normalize_cn: 9/9 OK")
           CN_EOF
+      - name: Chip-distribution unit check
+        run: |
+          set -e
+          python3 - <<'CHIP_EOF'
+          import sys
+          sys.path.insert(0, "scripts")
+          from fetch_card import chip_distribution
+          # regime 1: long flat base ~100, then a 20-session rally to ~119 — the
+          # last close sits above almost the whole profile → profit ratio high
+          base = [[f"d{i}", 100, 100, 101, 99, 1000] for i in range(40)]
+          up = [[f"u{i}", 100 + i, 100 + i, 101 + i, 99 + i, 1500] for i in range(20)]
+          ch = chip_distribution(base + up)
+          assert 0.0 <= ch["profit_ratio"] <= 1.0
+          assert 99 <= ch["cost_range_90"][0] <= ch["cost_range_90"][1] <= 121
+          assert 100 <= ch["avg_cost"] <= 120, ch["avg_cost"]
+          assert ch == chip_distribution(base + up), "must be deterministic"
+          assert ch["profit_ratio"] > 0.8, f"rally atop a flat base → most chips below the close, got {ch['profit_ratio']}"
+          # regime 2: mirror — flat top ~140, then a 20-session slide to ~121 → low profit ratio
+          top = [[f"t{i}", 140, 140, 141, 139, 1000] for i in range(40)]
+          down = [[f"w{i}", 140 - i, 140 - i, 141 - i, 139 - i, 1500] for i in range(20)]
+          ch2 = chip_distribution(top + down)
+          assert ch2["profit_ratio"] < 0.2, f"slide off a flat top → few chips below the close, got {ch2['profit_ratio']}"
+          print("chip_distribution: bounds/determinism/both regimes OK", ch["profit_ratio"], ch2["profit_ratio"])
+          CHIP_EOF
       - name: S5.0 settle-integrity unit check
         run: |
           set -e
