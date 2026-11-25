@@ -1,7 +1,7 @@
 {
   "name": "dsh-tradingagents",
-  "version": "0.3.1",
-  "description": "TradingAgents, natively on DeepSeek Harness \u2014 multi-agent investment committee CLI (analyst / bull / bear / risk / PM, plus Buffett/Munger/Lynch/Wood guest seats) with evidence tags, PASS as a first-class verdict, auditable IC-MEMO output, a zero-key OpenBB rich data card (CBOE quote/K-line/IV + SEC 10-K + nasdaq news), a settled track-record ledger \u2014 and the family bridge: dsh-vibe-trading research trails feed the committee directly.",
+  "version": "0.4.0",
+  "description": "TradingAgents, natively on DeepSeek Harness — multi-agent investment committee CLI (analyst / bull / bear / risk / PM, plus Buffett/Munger/Lynch/Wood guest seats) with evidence tags, PASS as a first-class verdict, auditable IC-MEMO output, a zero-key OpenBB rich data card (CBOE quote/K-line/IV + SEC 10-K + nasdaq news), a settled track-record ledger — and the family bridge: dsh-vibe-trading research trails feed the committee directly.",
   "type": "module",
   "bin": {
     "tradingagents": "bin/tradingagents.js"

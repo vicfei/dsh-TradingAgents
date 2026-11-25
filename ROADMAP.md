@@ -207,11 +207,14 @@ Replan driven by three new facts: first real settlement landed; CN audit
 as-of, no microstructure, single settle channel); TradingAgents-CN (33k★)
 validates the pain and confirms the settlement moat is uncontested.
 
-- [ ] S6.0 CN parity: rich card wiring + microstructure injection + settle
-      channel #2 + as-of CN (unblocks CN backtest grids) + ticker unification
-- [ ] S6.1 settlement compounding: 4 pending windows → n≥5 track record +
-      reflection quality + one live [T#] re-injection observed
-- [ ] S6.2 conversion residue (posting owner-gated): first-blood post draft;
-      day-7 channel review 11-29
-- [ ] S6.3 stretch: chip-distribution (筹码分布) as in-card derived evidence
-- [ ] S6.4 release train: 0.4.0
+- [x] S6.0 CN parity (2026-11-25): rich card #55 · microstructure #57 ·
+      as-of CN + CN backtest unblocked #59 · ticker unification #55 ·
+      settle channel #2 #53
+- [x] S6.1 settlement compounding: [T#] re-injection observed live
+      (600519 2026-11-25 OVERWEIGHT@62 — the [T2]/[T3] lesson changed the
+      size decision); n≥5 review rides the 11-28 cron (n=3 as of 11-25,
+      all-positive alpha)
+- [ ] S6.2 conversion residue — **owner-owned track** (carved out
+      2026-11-25): first-blood post; day-7 channel review 11-29
+- [x] S6.3 chip-distribution (筹码分布) in-card derived evidence (#61)
+- [x] S6.4 release train: 0.4.0 (this PR; npm publish = owner terminal)

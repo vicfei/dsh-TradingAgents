@@ -66,11 +66,14 @@ Order by leverage (matches the audit):
 - Verify one live **[T#] re-injection**: the next real session's PM payload
   must carry the settled lessons block — the loop's full circuit, observed.
 
-## S6.2 · Conversion residue (posting stays owner-gated; drafting is not)
+## S6.2 · Conversion residue — **OWNER-OWNED TRACK (carved out 2026-11-25)**
+
+> Owner directive 2026-11-25: S6.2 is executed separately by the owner; the
+> engineering window (S6.0/6.1/6.3/6.4) proceeds without it. Left here as the
+> owner's checklist:
 
 - First-blood post from real settlement data — the draft exists, data slots
-  fill from the track-record page; **posting resumes on owner's call**
-  (standing deferral 2026-11-22).
+  fill from the track-record page (n=3 all-positive alpha as of 2026-11-25).
 - Day-7 channel conversion review 2026-11-29 (gap-radar star board +
   downloads→stars funnel; honest read of how much of the 231/day is real).
 
@@ -104,13 +107,17 @@ Order by leverage (matches the audit):
 
 ## Definition of done for S6
 
-- [ ] CN card carries fundamentals + industry + news with sources; the
+- [x] CN card carries fundamentals + industry + news with sources; the
       microstructure block is live in risk/PM payloads on `market == cn`
-- [ ] CN settle has ≥2 channels; one CN as-of backtest grid ran end to end
-      into an isolated ledger
-- [ ] ≥5 real settlements in the track record; one live [T#] re-injection
-      observed in a real session
-- [ ] 0.4.0 on npm
+      (#55/#57; live session 600519 2026-11-25 — guardrails rewritten
+      session-ahead because of T+1)
+- [x] CN settle has ≥2 channels (#53); one CN as-of backtest grid ran end to
+      end into an isolated ledger (#59 — HOLD@58, +1.1% alpha vs SSE)
+- [x] one live [T#] re-injection observed in a real session (600519
+      2026-11-25: the [T2]/[T3] NVDA lesson visibly changed the size
+      decision — starter position instead of a 0%-size PASS) · ≥5 settlements
+      pending the 11-28 cron (AAPL + sh600519 windows; n=3 as of 11-25)
+- [ ] 0.4.0 on npm (tarball packed; owner real-terminal publish)
 
 ## S7 preview (not committed)
 
