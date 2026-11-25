@@ -183,41 +183,84 @@ def _closes_sina(symbol, start, end):
     return {r["d"]: float(r["c"]) for r in rows if start <= r["d"] <= end}
 
 
+def _em_fetch(url):
+    """One push2his probe: direct first, then the SG-relay curl hop — the CDN
+    blackholes bursty IPs mid-request (TLS ok, instant close; #48), and the
+    remote URL must be shlex-quoted (ssh hands argv to the remote shell)."""
+    import shlex
+    import subprocess as sp
+    import urllib.request
+    key = os.path.expanduser("~/.ssh/id_ed25519_gwpull")
+    host = "ubuntu@43.134.172.70"
+    remote = f"curl -s -m 15 {shlex.quote(url)} -H {shlex.quote('User-Agent: Mozilla/5.0')}"
+    for fetch in (
+        lambda: json.loads(urllib.request.urlopen(urllib.request.Request(
+            url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15).read()).get("data"),
+        lambda: json.loads(sp.run(["ssh", "-i", key, "-o", "ConnectTimeout=12", host, remote],
+                                  capture_output=True, text=True, timeout=40).stdout).get("data"),
+    ):
+        try:
+            data = fetch()
+        except Exception:
+            continue
+        if data and data.get("klines"):
+            return data
+    return None
+
+
+def _em_klines_url(secid, start, end):
+    return (f"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={secid}"
+            f"&fields1=f1,f2,f3&fields2=f51,f53&klt=101&fqt=1"
+            f"&beg={start.replace('-', '')}&end={end.replace('-', '')}")
+
+
 def _closes_eastmoney(symbol, start, end):
     """US fallback #5: eastmoney push2his daily kline — no key, qfq-adjusted
     (same semantics as tencent qfq). CAUTION: the CDN blackholes bursty IPs
     mid-request (TLS ok, then instant close), so each market probe falls back
     to the SG relay hop on failure; keep request volume low. Market prefix
     probed NASDAQ→NYSE→AMEX (SPY lives on 107); data:null just tries the next."""
-    import shlex
-    import subprocess as sp
-    import urllib.request
-    key = os.path.expanduser("~/.ssh/id_ed25519_gwpull")
-    host = "ubuntu@43.134.172.70"
     for mkt in ("105", "106", "107"):
-        url = (f"https://push2his.eastmoney.com/api/qt/stock/kline/get?secid={mkt}.{symbol}"
-               f"&fields1=f1,f2,f3&fields2=f51,f53&klt=101&fqt=1"
-               f"&beg={start.replace('-', '')}&end={end.replace('-', '')}")
-        remote = f"curl -s -m 15 {shlex.quote(url)} -H {shlex.quote('User-Agent: Mozilla/5.0')}"
-        for fetch in (
-            lambda: json.loads(urllib.request.urlopen(urllib.request.Request(
-                url, headers={"User-Agent": "Mozilla/5.0"}), timeout=15).read()).get("data"),
-            lambda: json.loads(sp.run(["ssh", "-i", key, "-o", "ConnectTimeout=12", host, remote],
-                                      capture_output=True, text=True, timeout=40).stdout).get("data"),
-        ):
-            try:
-                data = fetch()
-            except Exception:
-                continue
-            if data and data.get("klines"):
-                return {k.split(",")[0]: float(k.split(",")[1]) for k in data["klines"]}
+        data = _em_fetch(_em_klines_url(f"{mkt}.{symbol}", start, end))
+        if data:
+            return {k.split(",")[0]: float(k.split(",")[1]) for k in data["klines"]}
     raise ValueError(f"no kline data for {symbol} from eastmoney (105/106/107, direct+relay)")
+
+
+def _em_secid_cn(symbol):
+    """CN secid for push2his: 1.=SH, 0.=SZ (BSE rides the 0. prefix; the SSE
+    Composite benchmark is 1.000001). Pure function — CI-tested."""
+    alias = {"000001.SS": "1.000001", "399001.SZ": "0.399001"}
+    if symbol in alias:
+        return alias[symbol]
+    if symbol[:2].lower() in ("sh", "sz", "bj"):
+        prefix, code = symbol[:2].lower(), symbol[2:]
+    else:
+        code = symbol
+        prefix = "sh" if code.startswith(("6", "5")) else ("bj" if code.startswith(("4", "8")) else "sz")
+    return ("1." if prefix == "sh" else "0.") + code
+
+
+def _closes_eastmoney_cn(symbol, start, end):
+    """CN fallback #2 (S6.0-3): same push2his qfq kline, CN secids, same
+    dual-hop caveats as the US tier (#48)."""
+    secid = _em_secid_cn(symbol)
+    data = _em_fetch(_em_klines_url(secid, start, end))
+    if not data:
+        raise ValueError(f"no kline data for {symbol} from eastmoney-cn ({secid})")
+    return {k.split(",")[0]: float(k.split(",")[1]) for k in data["klines"]}
 
 
 def closes_for(ticker, start, end):
     market = "cn" if (ticker.isdigit() or ticker.lower().startswith(("sh", "sz"))) else "us"
     if market == "cn":
-        return _sufficient(_closes_tencent(ticker, start, end), start, end, "tencent"), market
+        last = None
+        for name, fn in (("tencent", _closes_tencent), ("eastmoney-cn", _closes_eastmoney_cn)):
+            try:
+                return _sufficient(fn(ticker, start, end), start, end, name), market
+            except Exception as exc:
+                last = exc
+        raise last
     last = None
     for name, fn in (("cboe", _closes_openbb), ("yahoo", _closes_yahoo), ("sg-relay", _closes_relay),
                      ("sina", _closes_sina), ("eastmoney", _closes_eastmoney),
