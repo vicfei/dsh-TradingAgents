@@ -186,15 +186,32 @@ issue → branch → PR.
 6. **Track record as content**: from R2 on, every settlement batch is exclusive
    publishing material
 
-## S5 · First blood & the format play (2026-11-22 → 12-06)
+## S5 · First blood & the format play (2026-11-22 → 12-06) — closed out by S6
 
-→ full plan: [docs/plan-S5.md](docs/plan-S5.md). Snapshot: 0.3.0 live ·
-downloads 1,594/wk (family #1) · awesome PR #16227 MERGED · settle cron
-live but bleeding (6/6 entries pending — skip-retry bug, S5.0 first).
+→ full plan: [docs/plan-S5.md](docs/plan-S5.md) (through amendment v3).
 
-- [ ] S5.0 settle integrity repair + unblock all 6 entries + first real
-      track-record snapshot (closes #32)
-- [ ] S5.1 content from real data + star dashboard day-7 review (#34)
-- [ ] S5.2 IC-MEMO open format repo + Python SDK (#35 pick B → #24;
-      family-precedent de-risked by FORMAT.md play + dsh-uigen surface)
-- [ ] S5.3 genui quick wins (IC-MEMO summary card via ui_compose)
+- [x] S5.0 settle integrity repair (#42) + first real track-record snapshot —
+      **first settlement landed 2026-11-24: NVDA@2026-11-13, +8.1% alpha**
+      (US chain rebuilt same day: #47–#49; #32 closed)
+- [x] S5.2' in-repo schema discipline + dsh-ui verdict card (#43/#44) +
+      `--report` snapshot (#45) — the standalone ic-memo repo play was
+      cancelled by owner ruling 2026-11-23 (adoption first)
+- [x] 0.3.1 on npm (settle integrity + validator + card + snapshot; tag v0.3.1)
+- [ ] S5.1 residue → rides inside S6.2 (posting owner-gated; day-7 review 11-29)
+
+## S6 · A-share parity & the compounding ledger (2026-11-25 → 12-15) — CURRENT
+
+→ full plan: [docs/plan-S6.md](docs/plan-S6.md) · tracker: issue #50.
+Replan driven by three new facts: first real settlement landed; CN audit
+(the A-share card carries ~60% of the US card — rich-card dead code, no
+as-of, no microstructure, single settle channel); TradingAgents-CN (33k★)
+validates the pain and confirms the settlement moat is uncontested.
+
+- [ ] S6.0 CN parity: rich card wiring + microstructure injection + settle
+      channel #2 + as-of CN (unblocks CN backtest grids) + ticker unification
+- [ ] S6.1 settlement compounding: 4 pending windows → n≥5 track record +
+      reflection quality + one live [T#] re-injection observed
+- [ ] S6.2 conversion residue (posting owner-gated): first-blood post draft;
+      day-7 channel review 11-29
+- [ ] S6.3 stretch: chip-distribution (筹码分布) as in-card derived evidence
+- [ ] S6.4 release train: 0.4.0
