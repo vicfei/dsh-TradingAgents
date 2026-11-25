@@ -6,3 +6,4 @@ npm/templates/
 npm/data/
 npm/LICENSE
 npm/*.tgz
+backtest/
