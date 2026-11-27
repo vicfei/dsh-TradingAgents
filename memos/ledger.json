@@ -87,10 +87,18 @@
    "confidence": "58",
    "committee": "tradingagents/v1",
    "memo": "sh600519-2026-11-19.md",
-   "pending": true,
+   "pending": false,
    "synthetic": false,
    "review": false,
-   "added_at": "2026-11-20T01:48:22"
+   "added_at": "2026-11-20T01:48:22",
+   "raw_return": -0.009,
+   "alpha": -0.0296,
+   "entry_date": "2026-11-20",
+   "exit_date": "2026-11-27",
+   "resolution_date": "2026-11-27",
+   "benchmark": "000001.SS",
+   "holding_days": 5,
+   "reflection": "The 5-day alpha of -3.0% (raw -0.9%) is a clear negative directional signal, though five sessions is too short to validate or refute a thesis built on ret20/ret60 momentum and low vol_z20. It undercuts the near-term momentum premise: the stock lagged the index materially right after the call, which is the opposite of what an OVERWEIGHT on positive ret20/ret60 should produce. Lesson: when vol_z20 is deeply negative and RSI/MACD are null, treat the setup as unconfirmed and demand the missing indicators before sizing tranche 1, rather than leaning on price momentum alone."
   },
   {
    "ticker": "600519",
